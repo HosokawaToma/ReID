@@ -40,13 +40,12 @@ class DataSetManager:
             if not camera_see_part.startswith('c') or 's' not in camera_see_part:
                 raise ValueError(f"カメラ・シー情報の形式が正しくありません: {camera_see_part}")
 
-            camera_see_parts = camera_see_part[1:].split(
-                's')  # c1s1 -> ['1', '1']
+            camera_see_parts = camera_see_part[1:].split('s')
             if len(camera_see_parts) != 2:
                 raise ValueError(f"カメラ・シー情報の形式が正しくありません: {camera_see_part}")
 
-            camera_id = int(camera_see_parts[0])
-            see_id = int(camera_see_parts[1])
+            camera_id = int(camera_see_parts[0]) - 1
+            see_id = int(camera_see_parts[1]) - 1
 
             return process_id, camera_id, see_id, image
 

@@ -199,8 +199,7 @@ class ReIDModelManager:
                     features = self.model(x=image_tensor, get_image=True)
 
                 elif self.backend == "trans_reid":
-                    features = self.model(image_tensor, cam_label=camera_id,
-                                          view_label=view_id)
+                    features = self.model(image_tensor, cam_label=camera_id, view_label=view_id)
 
                 elif self.backend == "la_transformer":
                     features = self.model(image_tensor)

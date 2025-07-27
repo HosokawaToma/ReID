@@ -27,7 +27,7 @@ APP_CONFIG = AppConfig()
 @dataclass
 class PersonImageAppConfig:
     class Default:
-        reid_backend: str = "clip"
+        reid_backend: str = "trans_reid"
         data_set_name: str = "market10"
 
     class Directories:
