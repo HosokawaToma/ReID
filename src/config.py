@@ -1,3 +1,4 @@
+from typing import Tuple
 from dataclasses import dataclass
 import torch
 from typing import Tuple
@@ -84,29 +85,73 @@ DATASET_CONFIG = DatasetConfig()
 # ClipReID設定
 # ================================
 
-
 @dataclass
 class ClipReIDConfig:
     class MODEL:
+        PRETRAIN_CHOICE: str = "imagenet"
+        METRIC_LOSS_TYPE: str = "triplet"
+        IF_LABELSMOOTH: str = "on"
+        IF_WITH_CENTER: str = "no"
         NAME: str = "ViT-B-16"
-        COS_LAYER: str = "no"
-        NECK: str = "no"
-        SIE_COE: float = 3.0
-        SIE_CAMERA: bool = True
-        SIE_VIEW: bool = True
-        STRIDE_SIZE: Tuple[int, int] = (12, 12)
+        STRIDE_SIZE: Tuple[int, int] = (16, 16)
+        ID_LOSS_WEIGHT: float = 0.25
+        TRIPLET_LOSS_WEIGHT: float = 1.0
+        I2T_LOSS_WEIGHT: float = 1.0
 
     class INPUT:
         SIZE_TRAIN: Tuple[int, int] = (256, 128)
-        MEAN: Tuple[float, float, float] = (0.48145466, 0.4578275, 0.40821073)
-        STD: Tuple[float, float, float] = (0.26862954, 0.26130258, 0.27577711)
+        SIZE_TEST: Tuple[int, int] = (256, 128)
+        PROB: float = 0.5  # random horizontal flip
+        RE_PROB: float = 0.5  # random erasing
+        PADDING: int = 10
+        PIXEL_MEAN: Tuple[float, float, float] = (0.5, 0.5, 0.5)
+        PIXEL_STD: Tuple[float, float, float] = (0.5, 0.5, 0.5)
+
+    class DATALOADER:
+        SAMPLER: str = "softmax_triplet"
+        NUM_INSTANCE: int = 4
+        NUM_WORKERS: int = 8
+
+    class SOLVER:
+        class STAGE1:
+            IMS_PER_BATCH: int = 64
+            OPTIMIZER_NAME: str = "Adam"
+            BASE_LR: float = 0.00035
+            WARMUP_LR_INIT: float = 0.00001
+            LR_MIN: float = 1e-6
+            WARMUP_METHOD: str = 'linear'
+            WEIGHT_DECAY: float = 1e-4
+            WEIGHT_DECAY_BIAS: float = 1e-4
+            MAX_EPOCHS: int = 120
+            CHECKPOINT_PERIOD: int = 120
+            LOG_PERIOD: int = 50
+            WARMUP_EPOCHS: int = 5
+
+        class STAGE2:
+            IMS_PER_BATCH: int = 64
+            OPTIMIZER_NAME: str = "Adam"
+            BASE_LR: float = 5e-06
+            WARMUP_METHOD: str = 'linear'
+            WARMUP_ITERS: int = 10
+            WARMUP_FACTOR: float = 0.1
+            WEIGHT_DECAY: float = 1e-4
+            WEIGHT_DECAY_BIAS: float = 1e-4
+            LARGE_FC_LR: bool = False
+            MAX_EPOCHS: int = 60
+            CHECKPOINT_PERIOD: int = 60
+            LOG_PERIOD: int = 50
+            EVAL_PERIOD: int = 60
+            BIAS_LR_FACTOR: int = 2
+            STEPS: Tuple[int, int] = (30, 50)
+            GAMMA: float = 0.1
 
     class TEST:
-        NECK_FEAT: str = "after"
-
-    class DATASETS:
-        NAMES: str = "market"
-
+        EVAL: bool = True
+        IMS_PER_BATCH: int = 64
+        RE_RANKING: bool = False
+        WEIGHT: str = ''
+        NECK_FEAT: str = 'before'
+        FEAT_NORM: str = 'yes'
 
 CLIP_REID_CONFIG = ClipReIDConfig()
 
@@ -118,43 +163,58 @@ CLIP_REID_CONFIG = ClipReIDConfig()
 @dataclass
 class TransReIDConfig:
     class MODEL:
-        NAME: str = "transformer"
-        TRANSFORMER_TYPE: str = "vit_base_patch16_224_TransReID"
-        PRETRAIN_CHOICE: str = "self"
+        PRETRAIN_CHOICE: str = "imagenet"
         PRETRAIN_PATH: str = "models/vit_transreid_market.pth"
-        LAST_STRIDE: int = 1
-        COS_LAYER: str = "no"
-        NECK: str = "bnneck"
-        JPM: bool = True
-        SIE_CAMERA: bool = True
-        SIE_VIEW: bool = False
-        SIE_COE: float = 3.0
+        METRIC_LOSS_TYPE: str = "triplet"
+        IF_LABELSMOOTH: str = "off"
+        IF_WITH_CENTER: str = "no"
+        NAME: str = "transformer"
+        NO_MARGIN: bool = True
+        DEVICE_ID: Tuple[str, ...] = ("7",)
+        TRANSFORMER_TYPE: str = "vit_base_patch16_224_TransReID"
         STRIDE_SIZE: Tuple[int, int] = (16, 16)
-        DROP_PATH: float = 0.1
-        DROP_OUT: float = 0.0
-        ATT_DROP_RATE: float = 0.0
-        ID_LOSS_TYPE: str = "softmax"
-        RE_ARRANGE: bool = False
-        SHUFFLE_GROUP: int = 2
-        SHIFT_NUM: int = 5
-        DIVIDE_LENGTH: int = 4
-        DEVIDE_LENGTH: int = 4
 
     class INPUT:
-        SIZE_TRAIN: Tuple[int, int] = (336, 160)
-        MEAN: Tuple[float, float, float] = (0.485, 0.456, 0.406)
-        STD: Tuple[float, float, float] = (0.229, 0.224, 0.225)
-
-    class TEST:
-        NECK_FEAT: str = "before"
-
-    class SOLVER:
-        COSINE_SCALE: float = 30.0
-        COSINE_MARGIN: float = 0.5
+        SIZE_TRAIN: Tuple[int, int] = (256, 128)
+        SIZE_TEST: Tuple[int, int] = (256, 128)
+        PROB: float = 0.5
+        RE_PROB: float = 0.5
+        PADDING: int = 10
+        PIXEL_MEAN: Tuple[float, float, float] = (0.5, 0.5, 0.5)
+        PIXEL_STD: Tuple[float, float, float] = (0.5, 0.5, 0.5)
 
     class DATASETS:
-        NAMES: str = "market"
+        NAMES: str = "market1501"
+        ROOT_DIR: str = "../../data"
 
+    class DATALOADER:
+        SAMPLER: str = "softmax_triplet"
+        NUM_INSTANCE: int = 4
+        NUM_WORKERS: int = 8
+
+    class SOLVER:
+        OPTIMIZER_NAME: str = "SGD"
+        MAX_EPOCHS: int = 120
+        BASE_LR: float = 0.008
+        IMS_PER_BATCH: int = 64
+        WARMUP_METHOD: str = "linear"
+        LARGE_FC_LR: bool = False
+        CHECKPOINT_PERIOD: int = 120
+        LOG_PERIOD: int = 50
+        EVAL_PERIOD: int = 120
+        WEIGHT_DECAY: float = 1e-4
+        WEIGHT_DECAY_BIAS: float = 1e-4
+        BIAS_LR_FACTOR: int = 2
+
+    class TEST:
+        EVAL: bool = True
+        IMS_PER_BATCH: int = 256
+        RE_RANKING: bool = False
+        WEIGHT: str = "../logs/0321_market_vit_base/transformer_120.pth"
+        NECK_FEAT: str = "before"
+        FEAT_NORM: str = "yes"
+
+    OUTPUT_DIR: str = "../logs/0321_market_vit_base"
 
 TRANS_REID_CONFIG = TransReIDConfig()
 
@@ -172,8 +232,8 @@ class LA_TransformerConfig:
 
     class INPUT:
         SIZE_TRAIN: Tuple[int, int] = (224, 224)
-        MEAN: Tuple[float, float, float] = (0.485, 0.456, 0.406)
-        STD: Tuple[float, float, float] = (0.229, 0.224, 0.225)
+        PIXEL_MEAN: Tuple[float, float, float] = (0.485, 0.456, 0.406)
+        PIXEL_STD: Tuple[float, float, float] = (0.229, 0.224, 0.225)
 
 
 LA_TRANSFORMER_CONFIG = LA_TransformerConfig()
@@ -187,6 +247,7 @@ LA_TRANSFORMER_CONFIG = LA_TransformerConfig()
 class PostProcessingConfig:
     class EVALUATE:
         MAX_RANK: int = 50
+        METRIC: str = "cosine"
         USE_METRIC_CUHK03: bool = False
         USE_CYTHON: bool = False
 

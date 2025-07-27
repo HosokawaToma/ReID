@@ -100,8 +100,8 @@ class ReIDModelManager:
             transforms.Resize(CLIP_REID_CONFIG.INPUT.SIZE_TRAIN),
             transforms.ToTensor(),
             transforms.Normalize(
-                mean=CLIP_REID_CONFIG.INPUT.MEAN,
-                std=CLIP_REID_CONFIG.INPUT.STD
+                mean=CLIP_REID_CONFIG.INPUT.PIXEL_MEAN,
+                std=CLIP_REID_CONFIG.INPUT.PIXEL_STD
             )
         ])
 
@@ -128,8 +128,8 @@ class ReIDModelManager:
             transforms.Resize(TRANS_REID_CONFIG.INPUT.SIZE_TRAIN),
             transforms.ToTensor(),
             transforms.Normalize(
-                mean=TRANS_REID_CONFIG.INPUT.MEAN,
-                std=TRANS_REID_CONFIG.INPUT.STD
+                mean=TRANS_REID_CONFIG.INPUT.PIXEL_MEAN,
+                std=TRANS_REID_CONFIG.INPUT.PIXEL_STD
             )
         ])
 
@@ -163,8 +163,8 @@ class ReIDModelManager:
             transforms.Resize(LA_TRANSFORMER_CONFIG.INPUT.SIZE_TRAIN),
             transforms.ToTensor(),
             transforms.Normalize(
-                mean=LA_TRANSFORMER_CONFIG.INPUT.MEAN,
-                std=LA_TRANSFORMER_CONFIG.INPUT.STD
+                mean=LA_TRANSFORMER_CONFIG.INPUT.PIXEL_MEAN,
+                std=LA_TRANSFORMER_CONFIG.INPUT.PIXEL_STD
             )
         ])
 
