@@ -1,0 +1,33 @@
+# Core dependencies - 仕様通りのバージョン
+torch==2.3.1
+torchvision==0.18.1
+numpy>=1.21.0
+opencv-python==4.10.0.84
+Pillow>=9.0.0
+
+# YOLO and computer vision - 仕様通りのバージョン
+ultralytics==8.2.33
+
+# Model and image processing
+timm>=0.9.0
+
+# Development and testing
+mypy>=1.0.0
+flake8>=6.0.0
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
+# Type hints
+typing-extensions>=4.0.0
+
+# Additional dependencies for models
+ftfy
+regex
+tqdm
+scikit-learn>=1.0.0
+
+# ReID evaluation and visualization
+torchreid>=0.2.5
+matplotlib>=3.5.0
+gdown>=4.0.0
+tensorboard>=2.0.0
