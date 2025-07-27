@@ -49,13 +49,14 @@ class PostProcessingManager:
         print("評価処理開始...")
         try:
             # 特徴量をテンソルに変換
-            q = torch.stack([torch.from_numpy(feat)
-                            for feat in query_feats], 0)  # (Nq,D)
-            g = torch.stack([torch.from_numpy(feat)
-                            for feat in gallery_feats], 0)  # (Ng,D)
+            q = torch.stack([torch.from_numpy(feat) for feat in query_feats], 0)  # (Nq,D)
+            g = torch.stack([torch.from_numpy(feat) for feat in gallery_feats], 0)  # (Ng,D)
+
+            q = F.normalize(q, p=2, dim=1)
+            g = F.normalize(g, p=2, dim=1)
 
             # 距離行列 (Nq,Ng)
-            dist = metrics.compute_distance_matrix(q, g).cpu().numpy()
+            dist = metrics.compute_distance_matrix(q, g, metric=POST_PROCESSING_CONFIG.EVALUATE.METRIC).cpu().numpy()
 
             # IDとカメラIDをNumPy配列に変換
             q_pids = np.asarray(query_process_ids, dtype=np.int64)
