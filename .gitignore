@@ -151,10 +151,10 @@ Desktop.ini
 *~
 
 # Project specific
-.kiro/
-dataset/
-models/
-resources/
+./.kiro/
+./dataset/
+./models/
+./resources/
 *.pth
 *.pkl
 *.h5
@@ -176,6 +176,9 @@ temp/
 # Data files
 data/
 datasets/
+!./src/reid_models/clip_reid/datasets/
+!./src/reid_models/trans_reid/datasets/
+!./src/reid_models/*/datasets/__pycache__/
 *.csv
 *.json
 *.xml
