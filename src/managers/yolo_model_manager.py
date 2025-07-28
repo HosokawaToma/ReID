@@ -9,6 +9,7 @@ from ultralytics.engine.results import Results
 
 from config import YOLO_CONFIG
 
+
 class YoloModelManager():
     """YOLOモデルの管理と人物検出・追跡を行うクラス"""
 
@@ -38,25 +39,37 @@ class YoloModelManager():
         :return: (バウンディングボックス, 人物画像)のタプルのリスト
         """
         try:
+            self.logger.debug(f"YOLO推論開始 - フレームサイズ: {frame.shape}")
+
             # YOLOで人物検出・追跡を実行
             results = self.model.track(
                 frame,
                 persist=True,
                 classes=[YOLO_CONFIG.MODEL.person_class_id],
                 conf=YOLO_CONFIG.MODEL.confidence_threshold,
-                verbose=False
+                verbose=False,
+                tracker="bytetrack.yaml"  # より安定した追跡アルゴリズムを使用
             )
 
             if not results or len(results) == 0:
+                self.logger.debug("YOLO推論結果が空です")
                 return []
 
             detections = []
             result = results[0]  # 最初の結果を使用
 
+            self.logger.debug(f"YOLO推論完了 - 結果数: {len(results)}")
+
             if result.boxes is not None:
-                for box in result.boxes:
+                self.logger.debug(f"検出されたボックス数: {len(result.boxes)}")
+
+                for i, box in enumerate(result.boxes):
                     # バウンディングボックス座標を取得
                     x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().astype(int)
+                    confidence = float(box.conf[0].cpu().numpy())
+
+                    self.logger.debug(
+                        f"ボックス {i+1}: 座標=({x1},{y1},{x2},{y2}), 信頼度={confidence:.3f}")
 
                     # フレーム境界内にクリップ
                     h, w = frame.shape[:2]
@@ -71,6 +84,18 @@ class YoloModelManager():
                     if person_crop.size > 0:
                         bounding_box = np.array([x1, y1, x2, y2])
                         detections.append((bounding_box, person_crop))
+                        self.logger.debug(
+                            f"人物 {i+1} の切り抜きサイズ: {person_crop.shape}")
+                    else:
+                        self.logger.warning(f"人物 {i+1} の切り抜きが空です")
+            else:
+                self.logger.debug("検出されたボックスがありません")
+
+            # デバッグ情報をログ出力
+            if detections:
+                self.logger.debug(f"人物検出数: {len(detections)}")
+            else:
+                self.logger.debug("人物が検出されませんでした")
 
             return detections
 

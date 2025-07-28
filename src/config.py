@@ -15,8 +15,7 @@ class AppConfig:
 
     def __post_init__(self):
         if self.device is None:
-            self.device = torch.device(
-                "cuda" if torch.cuda.is_available() else "cpu")
+            self.device = torch.device("cpu")
 
 
 APP_CONFIG = AppConfig()
@@ -70,8 +69,8 @@ VIDEO_APP_CONFIG = VideoAppConfig()
 class YoloConfig:
     class MODEL:
         model_path: str = "models/yolo11n-pose.pt"
-        confidence_threshold: float = 0.7
-        person_class_id: int = 1
+        confidence_threshold: float = 0.5  # 閾値を下げて検出感度を向上
+        person_class_id: int = 0  # YOLO v11では人物クラスIDが0の場合が多い
 
 
 YOLO_CONFIG = YoloConfig()

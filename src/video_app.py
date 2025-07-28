@@ -14,6 +14,13 @@ from managers.reid_model_manager import ReIDModelManager
 from managers.post_processing_manager import PostProcessingManager
 
 
+# ログ設定
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+
 class VideoReIDApp:
     """動画ファイル処理アプリケーション"""
 
@@ -31,6 +38,11 @@ class VideoReIDApp:
 
         # ログ設定
         self.logger = logging.getLogger(__name__)
+
+        # 人物追跡用の状態管理
+        self.person_tracker = {}  # {track_id: {'features': [], 'last_seen': frame_count}}
+        self.next_person_id = 1
+        self.feature_threshold = 0.7  # 類似度閾値
 
         # ディレクトリの検証と作成
         self._validate_directories()
@@ -148,7 +160,7 @@ class VideoReIDApp:
 
                     # 進捗ログ（一定間隔で）
                     if frame_count % 100 == 0:
-                        self.logger.debug(f"フレーム処理進捗: {frame_count}")
+                        self.logger.info(f"フレーム処理進捗: {frame_count}")
 
                 except Exception as e:
                     self.logger.warning(f"フレーム {frame_count} の処理中にエラー: {e}")
@@ -175,24 +187,33 @@ class VideoReIDApp:
             (処理済みフレーム, 検出された人物IDのリスト)
         """
         try:
-            # YOLO推論で人物検出
+            # YOLO推論で人物検出・追跡
             person_detections = self.yolo_manager._track_persons(frame)
 
             if not person_detections:
+                self.logger.debug(f"フレーム {frame_number}: 人物が検出されませんでした")
                 return frame, []
 
+            self.logger.debug(
+                f"フレーム {frame_number}: {len(person_detections)}人の人物を検出")
             detected_person_ids = []
             processed_frame = frame.copy()
 
             # 各検出された人物を処理
-            for bounding_box, person_crop in person_detections:
+            for i, (bounding_box, person_crop) in enumerate(person_detections):
                 try:
+                    self.logger.debug(f"フレーム {frame_number}, 人物 {i+1}: 特徴抽出開始")
+
                     # ReID特徴抽出
                     feat = self.reid_manager.extract_features(
                         person_crop, camera_id=video_id)
 
-                    # 人物ID割り当て（簡易版）
-                    person_id = self._assign_person_id(feat, video_id)
+                    # 人物ID割り当て（改善版）
+                    person_id = self._assign_person_id(
+                        feat, video_id, frame_number)
+
+                    self.logger.debug(
+                        f"フレーム {frame_number}, 人物 {i+1}: ID {person_id} を割り当て")
 
                     # バウンディングボックスとIDを描画
                     processed_frame = self._draw_detection(
@@ -200,7 +221,8 @@ class VideoReIDApp:
                     detected_person_ids.append(person_id)
 
                 except Exception as e:
-                    self.logger.warning(f"人物処理エラー (フレーム {frame_number}): {e}")
+                    self.logger.warning(
+                        f"人物処理エラー (フレーム {frame_number}, 人物 {i+1}): {e}")
                     continue
 
             return processed_frame, detected_person_ids
@@ -209,18 +231,94 @@ class VideoReIDApp:
             self.logger.error(f"フレーム処理エラー (フレーム {frame_number}): {e}")
             return frame, []
 
-    def _assign_person_id(self, feat: np.ndarray, video_id: int) -> int:
-        """人物IDを割り当て（簡易版）
+    def _assign_person_id(self, feat: np.ndarray, video_id: int, frame_number: int) -> int:
+        """人物IDを割り当て（改善版）
 
         Args:
             feat: 特徴量
             video_id: 動画ID
+            frame_number: フレーム番号
 
         Returns:
             人物ID
         """
-        # 簡易的なID割り当て（実際の実装ではより高度な処理が必要）
-        return len(self.data_manager.gallery) + 1
+        try:
+            # 既存の人物との類似度を計算
+            best_match_id = None
+            best_similarity = 0.0
+
+            for track_id, track_info in self.person_tracker.items():
+                if not track_info['features']:
+                    continue
+
+                # 最新の特徴量との類似度を計算
+                latest_feat = track_info['features'][-1]
+                similarity = self._calculate_similarity(feat, latest_feat)
+
+                if similarity > best_similarity and similarity > self.feature_threshold:
+                    best_similarity = similarity
+                    best_match_id = track_id
+
+            # 新しい人物として割り当て
+            if best_match_id is None:
+                person_id = self.next_person_id
+                self.next_person_id += 1
+
+                # 新しい追跡エントリを作成
+                self.person_tracker[person_id] = {
+                    'features': [feat.cpu().numpy()],
+                    'last_seen': frame_number
+                }
+
+                self.logger.debug(f"新しい人物ID {person_id} を作成")
+            else:
+                person_id = best_match_id
+                # 既存の追跡エントリを更新
+                self.person_tracker[person_id]['features'].append(
+                    feat.cpu().numpy())
+                self.person_tracker[person_id]['last_seen'] = frame_number
+
+                # 特徴量履歴を制限（最新10個まで）
+                if len(self.person_tracker[person_id]['features']) > 10:
+                    self.person_tracker[person_id]['features'] = self.person_tracker[person_id]['features'][-10:]
+
+                self.logger.debug(
+                    f"既存の人物ID {person_id} を更新 (類似度: {best_similarity:.3f})")
+
+            return person_id
+
+        except Exception as e:
+            self.logger.error(f"人物ID割り当てエラー: {e}")
+            # エラー時は新しいIDを割り当て
+            person_id = self.next_person_id
+            self.next_person_id += 1
+            return person_id
+
+    def _calculate_similarity(self, feat1: np.ndarray, feat2: np.ndarray) -> float:
+        """2つの特徴量間の類似度を計算
+
+        Args:
+            feat1: 特徴量1
+            feat2: 特徴量2
+
+        Returns:
+            類似度（0-1の範囲）
+        """
+        try:
+            # コサイン類似度を計算
+            dot_product = np.dot(feat1.flatten(), feat2.flatten())
+            norm1 = np.linalg.norm(feat1.flatten())
+            norm2 = np.linalg.norm(feat2.flatten())
+
+            if norm1 == 0 or norm2 == 0:
+                return 0.0
+
+            similarity = dot_product / (norm1 * norm2)
+            return max(0.0, min(1.0, similarity))  # 0-1の範囲に制限
+
+        except Exception as e:
+            self.logger.error(f"類似度計算エラー: {e}")
+            return 0.0
 
     def _draw_detection(self, frame: np.ndarray, bounding_box: np.ndarray, person_id: int) -> np.ndarray:
         """検出結果をフレームに描画
@@ -235,8 +333,8 @@ class VideoReIDApp:
         """
         x1, y1, x2, y2 = bounding_box.astype(int)
 
-        # 色を選択（簡易版）
-        color = (0, 255, 0)  # 緑色
+        # 色を選択（IDに基づいて一貫性のある色を生成）
+        color = self._get_color_for_id(person_id)
 
         # バウンディングボックスを描画
         cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
@@ -255,6 +353,31 @@ class VideoReIDApp:
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
         return frame
+
+    def _get_color_for_id(self, person_id: int) -> Tuple[int, int, int]:
+        """人物IDに基づいて一貫性のある色を生成
+
+        Args:
+            person_id: 人物ID
+
+        Returns:
+            BGR色タプル
+        """
+        # 色のパレット（BGR形式）
+        colors = [
+            (0, 255, 0),    # 緑
+            (255, 0, 0),    # 青
+            (0, 0, 255),    # 赤
+            (255, 255, 0),  # シアン
+            (255, 0, 255),  # マゼンタ
+            (0, 255, 255),  # 黄色
+            (128, 0, 128),  # 紫
+            (0, 128, 128),  # 茶色
+            (128, 128, 0),  # オリーブ
+            (255, 165, 0),  # オレンジ
+        ]
+
+        return colors[person_id % len(colors)]
 
     def _create_empty_summary(self) -> Dict[str, Any]:
         """空の処理サマリーを作成"""
