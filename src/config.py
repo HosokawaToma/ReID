@@ -61,6 +61,20 @@ class VideoAppConfig:
 VIDEO_APP_CONFIG = VideoAppConfig()
 
 # ================================
+# videos_yolo_app設定
+# ================================
+
+
+@dataclass
+class VideosYoloAppConfig:
+    class Directories:
+        input_dir_str: str = "./resources/videos_yolo/input"
+        output_dir_str: str = "./resources/videos_yolo/output"
+
+
+VIDEOS_YOLO_APP_CONFIG = VideosYoloAppConfig()
+
+# ================================
 # YOLO設定
 # ================================
 
