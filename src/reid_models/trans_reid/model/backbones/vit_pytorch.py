@@ -408,7 +408,7 @@ class TransReID(nn.Module):
         return x
 
     def load_param(self, model_path):
-        param_dict = torch.load(model_path, map_location='cpu')
+        param_dict = torch.load(model_path)
         if 'model' in param_dict:
             param_dict = param_dict['model']
         if 'state_dict' in param_dict:

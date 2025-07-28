@@ -69,7 +69,6 @@ class ReIDModelManager:
             raise ValueError(f"不明なReIDバックエンドです: {backend}")
 
         # モデルをデバイスに移動し、評価モードに設定
-        self.model.to(APP_CONFIG.device)
         self.model.eval()
 
         self.logger.info(f"{backend} ReIDモデルが正常にロードされました。")
