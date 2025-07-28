@@ -1,6 +1,6 @@
 """YOLO管理クラス"""
 
-from typing import List
+from typing import List, Tuple
 import logging
 
 import numpy as np
@@ -24,52 +24,36 @@ class YoloModelManager():
         """
         try:
             self.model = YOLO(YOLO_CONFIG.MODEL.model_path)
-            self.logger.info(f"YOLOモデルを読み込みました: {YOLO_CONFIG.MODEL.model_path}")
+            self.logger.info(
+                f"YOLOモデルを読み込みました: {YOLO_CONFIG.MODEL.model_path}")
         except Exception as e:
             self.logger.error(f"YOLOモデルの初期化に失敗しました: {e}")
             raise Exception(f"YOLOモデルの初期化に失敗しました: {e}")
 
-    def _track_persons(self, frame: np.ndarray) -> List[Results]:
+    def _track_persons(self, frame: np.ndarray) -> List[Tuple[np.ndarray, np.ndarray]]:
         """
         フレーム内の人物を検出・追跡する
 
         :param frame: 入力フレーム
-        :return: YOLO結果のリスト
+        :return: (バウンディングボックス, 人物画像)のタプルのリスト
         """
         try:
             # YOLOで人物検出・追跡を実行
-            return self.model.track(
+            results = self.model.track(
                 frame,
                 persist=True,
                 classes=[YOLO_CONFIG.MODEL.person_class_id],
                 conf=YOLO_CONFIG.MODEL.confidence_threshold,
                 verbose=False
             )
-        except Exception as e:
-            self.logger.error(f"人物追跡中にエラーが発生しました: {e}")
-            raise Exception(f"人物追跡中にエラーが発生しました: {e}")
 
-    def extract_person_crop_from_box(self, frame: np.ndarray) -> List[np.ndarray]:
-        """
-        フレームから人物の切り抜き画像を抽出する
+            if not results or len(results) == 0:
+                return []
 
-        :param frame: 元フレーム
-        :return: 人物の切り抜き画像のリスト
-        :raises ValueError: 無効なボックスまたはフレームの場合
-        """
-        if frame is None or frame.size == 0:
-            raise ValueError("無効なフレームです")
+            detections = []
+            result = results[0]  # 最初の結果を使用
 
-        try:
-            results = self._track_persons(frame)
-
-            if len(results) == 0:
-                self.logger.debug("人物が検出されませんでした")
-                return None
-
-            bounding_boxes = []
-
-            for result in results:
+            if result.boxes is not None:
                 for box in result.boxes:
                     # バウンディングボックス座標を取得
                     x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().astype(int)
@@ -84,12 +68,32 @@ class YoloModelManager():
                     # 人物領域を切り抜き
                     person_crop = frame[y1:y2, x1:x2]
 
-                    if person_crop.size == 0:
-                        raise ValueError("切り抜き画像が空です")
+                    if person_crop.size > 0:
+                        bounding_box = np.array([x1, y1, x2, y2])
+                        detections.append((bounding_box, person_crop))
 
-                    bounding_boxes.append(np.array([x1, y1, x2, y2]))
+            return detections
 
+        except Exception as e:
+            self.logger.error(f"人物追跡中にエラーが発生しました: {e}")
+            return []
+
+    def extract_person_crop_from_box(self, frame: np.ndarray) -> List[np.ndarray]:
+        """
+        フレームから人物の切り抜き画像を抽出する
+
+        :param frame: 元フレーム
+        :return: 人物の切り抜き画像のリスト
+        :raises ValueError: 無効なボックスまたはフレームの場合
+        """
+        if frame is None or frame.size == 0:
+            raise ValueError("無効なフレームです")
+
+        try:
+            detections = self._track_persons(frame)
+            bounding_boxes = [detection[0] for detection in detections]
             return bounding_boxes
+
         except Exception as e:
             self.logger.error(f"人物切り抜き処理エラー: {e}")
             raise ValueError(f"人物の切り抜きに失敗しました: {e}")

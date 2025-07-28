@@ -1,12 +1,12 @@
-# Core dependencies - 仕様通りのバージョン
-torch==2.3.1
-torchvision==0.18.1
+# Core dependencies - 最新の安定版
+torch>=2.0.0
+torchvision>=0.15.0
 numpy>=1.21.0
-opencv-python==4.10.0.84
+opencv-python>=4.8.0
 Pillow>=9.0.0
 
-# YOLO and computer vision - 仕様通りのバージョン
-ultralytics==8.2.33
+# YOLO and computer vision - 最新の安定版
+ultralytics>=8.0.0
 
 # Model and image processing
 timm>=0.9.0

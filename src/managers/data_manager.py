@@ -15,14 +15,14 @@ class DataManager:
 
         self.query_process_ids: List[int] = []
         self.query_camera_ids: List[int] = []
-        self.query_feats: List[np.ndarray] = []
+        self.query_feats: List[torch.Tensor] = []
         self.gallery_process_ids: List[int] = []
         self.gallery_camera_ids: List[int] = []
-        self.gallery_feats: List[np.ndarray] = []
+        self.gallery_feats: List[torch.Tensor] = []
 
         print("DataManager初期化完了")
 
-    def add_gallery(self, process_id: int, camera_id: int, feats: np.ndarray) -> None:
+    def add_gallery(self, process_id: int, camera_id: int, feats: torch.Tensor) -> None:
         """
         ギャラリー特徴量を追加
 
@@ -35,7 +35,7 @@ class DataManager:
         self.gallery_camera_ids.append(camera_id)
         self.gallery_feats.append(feats)
 
-    def add_query(self, process_id: int, camera_id: int, feats: np.ndarray) -> None:
+    def add_query(self, process_id: int, camera_id: int, feats: torch.Tensor) -> None:
         """
         クエリ特徴量を追加
 

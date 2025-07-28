@@ -152,6 +152,7 @@ Desktop.ini
 
 # Project specific
 .kiro/
+dataset/
 models/
 resources/
 *.pth

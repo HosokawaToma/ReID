@@ -10,6 +10,7 @@ import numpy as np
 import sys
 import os
 from pathlib import Path
+from typing import List, Tuple
 
 # 警告を完全に抑制（環境変数レベル）
 os.environ['PYTHONWARNINGS'] = 'ignore'
@@ -83,35 +84,20 @@ class PersonImageReIDApp:
 
     def _initialize_components(self) -> None:
         """コンポーネントの初期化"""
-        try:
-            print("コンポーネント初期化開始...")
-            self.logger.info("コンポーネントの初期化を開始します...")
+        self.logger.info("コンポーネントの初期化を開始します...")
 
-            print("DataManager初期化...")
-            self.data_manager = DataManager()
-            print("DataManager初期化完了")
+        self.data_manager = DataManager()
 
-            print("DataSetManager初期化...")
-            self.data_set_manager = DataSetManager(
-                data_set_name=self.data_set_name)
-            print("DataSetManager初期化完了")
+        self.data_set_manager = DataSetManager(
+            data_set_name=self.data_set_name)
 
-            print("ReIDModelManager初期化...")
-            self.reid_model_manager = ReIDModelManager(
-                backend=self.reid_backend)
-            print("ReIDModelManager初期化完了")
+        self.reid_model_manager = ReIDModelManager(
+            backend=self.reid_backend)
 
-            print("PostProcessingManager初期化...")
-            self.post_processing_manager = PostProcessingManager()
-            print("PostProcessingManager初期化完了")
+        self.post_processing_manager = PostProcessingManager()
 
-            self.logger.info("全てのコンポーネントの初期化が完了しました")
-            print("コンポーネント初期化完了")
+        self.logger.info("全てのコンポーネントの初期化が完了しました")
 
-        except Exception as e:
-            print(f"コンポーネント初期化エラー: {e}")
-            self.logger.error(f"コンポーネント初期化エラー: {e}")
-            raise Exception(f"コンポーネントの初期化に失敗しました: {e}")
 
     def _validate_directories(self) -> None:
         """ディレクトリの存在確認と作成"""
@@ -193,18 +179,12 @@ class PersonImageReIDApp:
         for file_path in self.data_set_query_dir_path.glob("*"):
             if not file_path.is_file():
                 continue
-
-            try:
-                process_id, camera_id, _, image = self.data_set_manager.load_image(
-                    file_path)
-                features = self.reid_model_manager.extract_features(
-                    image, camera_id)
-                self.data_manager.add_query(process_id, camera_id, features)
-                query_count += 1
-            except Exception as e:
-                self.logger.warning(
-                    f"Query画像の処理でエラーが発生しました: {file_path} - {e}")
-                continue
+            process_id, camera_id, _, image = self.data_set_manager.load_image(
+                file_path)
+            features = self.reid_model_manager.extract_features(
+                image, camera_id)
+            self.data_manager.add_query(process_id, camera_id, features)
+            query_count += 1
 
         self.logger.info(f"Query画像の処理が完了しました: {query_count}件")
         self.logger.info("データセットから特徴量の抽出が完了しました")
@@ -213,13 +193,34 @@ class PersonImageReIDApp:
     def _post_process(self) -> None:
         """後処理"""
         print("後処理開始...")
+        if not self.data_manager.query_feats or not self.data_manager.gallery_feats:
+            raise Exception("特徴量が抽出されていません。")
+
+        # re-rankingの結果を格納する変数
+        re_ranking_results = None
+
+        if PersonImageAppConfig.PostProcessing.re_ranking:
+            self.logger.info("K-reciprocal re-rankingを開始します...")
+            re_ranking_results = self.post_processing_manager.k_reciprocal_re_ranking(
+                self.data_manager.query_feats,
+                self.data_manager.gallery_feats
+            )
+            self.logger.info("K-reciprocal re-rankingが完了しました")
+
         self.logger.info("評価を開始します...")
 
-        if not self.data_manager.query_feats or not self.data_manager.gallery_feats:
-            self.logger.error("特徴量が抽出されていません。評価をスキップします。")
-            return
-
-        try:
+        if re_ranking_results is not None:
+            # re-rankingの結果を使用して評価
+            self.logger.info("re-ranking結果を使用して評価を実行します...")
+            cmc, mAP = self._evaluate_with_re_ranking_results(
+                re_ranking_results,
+                self.data_manager.query_process_ids,
+                self.data_manager.gallery_process_ids,
+                self.data_manager.query_camera_ids,
+                self.data_manager.gallery_camera_ids
+            )
+        else:
+            # 通常の評価
             cmc, mAP = self.post_processing_manager.evaluate(
                 self.data_manager.query_feats,
                 self.data_manager.gallery_feats,
@@ -229,17 +230,60 @@ class PersonImageReIDApp:
                 self.data_manager.gallery_camera_ids
             )
 
-            self.logger.info(f"評価結果 - CMC: {cmc}, mAP: {mAP:.4f}")
+        self.logger.info("評価が完了しました")
+        self.logger.info(f"評価結果 - CMC: {cmc}, mAP: {mAP:.4f}")
 
-            # 結果をファイルに保存
-            self._save_evaluation_results(cmc, mAP)
+        self._save_evaluation_results(cmc, mAP)
+
+        self.logger.info("後処理完了")
+
+    def _evaluate_with_re_ranking_results(
+        self,
+        re_ranking_dist: np.ndarray,
+        query_process_ids: List[int],
+        gallery_process_ids: List[int],
+        query_camera_ids: List[int],
+        gallery_camera_ids: List[int]
+    ) -> Tuple[np.ndarray, float]:
+        """
+        re-ranking結果を使用して評価を実行する
+
+        Args:
+            re_ranking_dist: re-ranking後の距離行列
+            query_process_ids: クエリプロセスIDのリスト
+            gallery_process_ids: ギャラリープロセスIDのリスト
+            query_camera_ids: クエリカメラIDのリスト
+            gallery_camera_ids: ギャラリーカメラIDのリスト
+
+        Returns:
+            Tuple[np.ndarray, float]: CMCスコアとmAPスコア
+        """
+        try:
+            # IDとカメラIDをNumPy配列に変換
+            q_pids = np.asarray(query_process_ids, dtype=np.int64)
+            g_pids = np.asarray(gallery_process_ids, dtype=np.int64)
+            q_camids = np.asarray(query_camera_ids, dtype=np.int64)
+            g_camids = np.asarray(gallery_camera_ids, dtype=np.int64)
+
+            # 評価実行
+            from torchreid import metrics
+            from config import POST_PROCESSING_CONFIG
+            cmc, mAP = metrics.evaluate_rank(
+                re_ranking_dist,
+                q_pids,
+                g_pids,
+                q_camids,
+                g_camids,
+                max_rank=POST_PROCESSING_CONFIG.EVALUATE.MAX_RANK,
+                use_metric_cuhk03=POST_PROCESSING_CONFIG.EVALUATE.USE_METRIC_CUHK03,
+                use_cython=POST_PROCESSING_CONFIG.EVALUATE.USE_CYTHON
+            )
+
+            return cmc, mAP
 
         except Exception as e:
-            self.logger.error(f"評価処理でエラーが発生しました: {e}")
-            raise
-
-        self.logger.info("評価が完了しました")
-        print("後処理完了")
+            self.logger.error(f"re-ranking結果での評価でエラーが発生しました: {e}")
+            raise Exception(f"re-ranking結果での評価に失敗しました: {e}")
 
     def _save_evaluation_results(self, cmc: np.ndarray, mAP: float) -> None:
         """評価結果をファイルに保存"""
@@ -281,14 +325,8 @@ class PersonImageReIDApp:
 
 def main():
     """メイン関数"""
-    print("メイン関数開始...")
-    try:
-        app = PersonImageReIDApp()
-        app.run()
-        print("メイン関数完了")
-    except Exception as e:
-        print(f"メイン関数エラー: {e}")
-        sys.exit(1)
+    app = PersonImageReIDApp()
+    app.run()
 
 
 if __name__ == "__main__":

@@ -4,16 +4,19 @@ from config import (
     CLIP_REID_CONFIG,
     TRANS_REID_CONFIG,
     LA_TRANSFORMER_CONFIG,
-    DATASET_CONFIG,
-    REID_MODEL_PATH_CONFIG
 )
-from reid_models.trans_reid.make_model import make_model as make_transreid_model
-from reid_models.la_transformer.model import LATransformerTest
-from reid_models.clip_reid.make_model_clipreid import make_model as make_clip_model
+from reid_models.clip_reid.config import cfg as clip_cfg
+from reid_models.clip_reid.model.make_model_clipreid import make_model as make_clip_model
+from reid_models.clip_reid.datasets.make_dataloader_clipreid import make_dataloader as make_clip_dataloader
+from reid_models.trans_reid.config import cfg as trans_cfg
+from reid_models.trans_reid.model.make_model import make_model as make_transreid_model
+from reid_models.trans_reid.datasets.make_dataloader import make_dataloader as make_trans_dataloader
+from reid_models.la_transformer.LATransformer.model import LATransformerTest
 import timm
 import logging
 import warnings
 import numpy as np
+import os
 
 import torch
 from PIL import Image
@@ -56,123 +59,116 @@ class ReIDModelManager:
         """
         self.logger.info(f"{backend} ReIDモデルの初期化を開始...")
 
-        try:
-            if backend == "clip":
-                self._initialize_clip_model()
-            elif backend == "trans_reid":
-                self._initialize_transreid_model()
-            elif backend == "la_transformer":
-                self._initialize_la_transformer_model()
-            else:
-                raise ValueError(f"不明なReIDバックエンドです: {backend}")
+        if backend == "clip":
+            self._initialize_clip_model()
+        elif backend == "trans_reid":
+            self._initialize_transreid_model()
+        elif backend == "la_transformer":
+            self._initialize_la_transformer_model()
+        else:
+            raise ValueError(f"不明なReIDバックエンドです: {backend}")
 
-            # モデルをデバイスに移動し、評価モードに設定
-            self.model.to(APP_CONFIG.device)
-            self.model.eval()
+        # モデルをデバイスに移動し、評価モードに設定
+        self.model.to(APP_CONFIG.device)
+        self.model.eval()
 
-            self.logger.info(f"{backend} ReIDモデルが正常にロードされました。")
-
-        except Exception as e:
-            self.logger.error(f"{backend}モデル初期化エラー: {e}")
-            raise Exception(f"ReIDモデルの初期化に失敗しました: {e}")
+        self.logger.info(f"{backend} ReIDモデルが正常にロードされました。")
 
     def _initialize_clip_model(self) -> None:
         """CLIP-ReIDモデルの初期化"""
         print("CLIP-ReIDモデル初期化開始...")
-        self.model = make_clip_model(
-            CLIP_REID_CONFIG,
-            DATASET_CONFIG.Market1501.num_classes,
-            DATASET_CONFIG.Market1501.camera_num,
-            DATASET_CONFIG.Market1501.view_num,
-            APP_CONFIG.device
-        )
+        clip_cfg.merge_from_file(CLIP_REID_CONFIG.Config.FILE_PATH)
+        clip_cfg.merge_from_list(CLIP_REID_CONFIG.Config.OPTIONS)
+        clip_cfg.freeze()
+        _, _, _, _, num_classes, camera_num, view_num = make_clip_dataloader(
+            clip_cfg)
+        model = make_clip_model(
+            clip_cfg, num_class=num_classes, camera_num=camera_num, view_num=view_num)
 
-        # 重みをロード
-        self.model.load_param(
-            REID_MODEL_PATH_CONFIG.Path.clip_reid,
-            APP_CONFIG.device
-        )
+        self.logger.info(f"CLIP-ReIDモデル作成完了")
+
+        model.load_param(clip_cfg.TEST.WEIGHT)
+        self.model = model
 
         self.logger.info(
-            f"CLIP-ReIDモデル重み読み込み完了: {REID_MODEL_PATH_CONFIG.Path.clip_reid}")
+            f"CLIP-ReIDモデル重み読み込み完了: {clip_cfg.TEST.WEIGHT}")
 
         self.transform = transforms.Compose([
-            transforms.Resize(CLIP_REID_CONFIG.INPUT.SIZE_TRAIN),
+            transforms.Resize(clip_cfg.INPUT.SIZE_TEST),
             transforms.ToTensor(),
             transforms.Normalize(
-                mean=CLIP_REID_CONFIG.INPUT.PIXEL_MEAN,
-                std=CLIP_REID_CONFIG.INPUT.PIXEL_STD
+                mean=clip_cfg.INPUT.PIXEL_MEAN,
+                std=clip_cfg.INPUT.PIXEL_STD
             )
         ])
 
         self.logger.info(
-            f"CLIP-ReIDモデルの前処理設定完了: {CLIP_REID_CONFIG.INPUT.SIZE_TRAIN}")
-        print("CLIP-ReIDモデル初期化完了")
+            f"CLIP-ReIDモデルのトランスフォーム設定完了: {clip_cfg.INPUT.SIZE_TEST}")
 
     def _initialize_transreid_model(self) -> None:
         """TransReIDモデルの初期化"""
         print("TransReIDモデル初期化開始...")
-        self.model = make_transreid_model(
-            TRANS_REID_CONFIG,
-            DATASET_CONFIG.Market1501.num_classes,
-            DATASET_CONFIG.Market1501.camera_num,
-            DATASET_CONFIG.Market1501.view_num
-        )
+        trans_cfg.merge_from_file(TRANS_REID_CONFIG.Config.FILE_PATH)
+        trans_cfg.merge_from_list(TRANS_REID_CONFIG.Config.OPTIONS)
+        trans_cfg.freeze()
 
-        self.model.load_param(REID_MODEL_PATH_CONFIG.Path.trans_reid)
+        _, _, _, _, num_classes, camera_num, view_num = make_trans_dataloader(
+            trans_cfg)
+        model = make_transreid_model(
+            trans_cfg, num_class=num_classes, camera_num=camera_num, view_num=view_num)
+
+        self.logger.info(f"TransReIDモデル作成完了")
+
+        model.load_param(trans_cfg.TEST.WEIGHT)
+        self.model = model
 
         self.logger.info(
-            f"TransReIDモデル重み読み込み完了: {REID_MODEL_PATH_CONFIG.Path.trans_reid}")
+            f"TransReIDモデル重み読み込み完了: {trans_cfg.TEST.WEIGHT}")
 
         self.transform = transforms.Compose([
-            transforms.Resize(TRANS_REID_CONFIG.INPUT.SIZE_TRAIN),
+            transforms.Resize(trans_cfg.INPUT.SIZE_TEST),
             transforms.ToTensor(),
             transforms.Normalize(
-                mean=TRANS_REID_CONFIG.INPUT.PIXEL_MEAN,
-                std=TRANS_REID_CONFIG.INPUT.PIXEL_STD
+                mean=trans_cfg.INPUT.PIXEL_MEAN,
+                std=trans_cfg.INPUT.PIXEL_STD
             )
         ])
 
         self.logger.info(
-            f"TransReIDモデルの前処理設定完了: {TRANS_REID_CONFIG.INPUT.SIZE_TRAIN}")
-        print("TransReIDモデル初期化完了")
+            f"TransReIDモデルのトランスフォーム設定完了: {trans_cfg.INPUT.SIZE_TEST}")
 
     def _initialize_la_transformer_model(self) -> None:
         """LA-Transformerモデルの初期化"""
         print("LA-Transformerモデル初期化開始...")
         # ベースモデルをtimmで作成
         vit_base = timm.create_model(
-            LA_TRANSFORMER_CONFIG.MODEL.BACKBONE,
-            pretrained=True,
-            num_classes=DATASET_CONFIG.Market1501.num_classes
-        )
-        self.model = LATransformerTest(
-            vit_base, LA_TRANSFORMER_CONFIG.MODEL.LAMBDA)
+            'vit_base_patch16_224', pretrained=True, num_classes=751)
 
-        # 重みをロード
-        state_dict = torch.load(
-            REID_MODEL_PATH_CONFIG.Path.la_transformer,
-            map_location=APP_CONFIG.device
-        )
-        self.model.load_state_dict(state_dict, strict=False)
+        vit_base = vit_base.to(APP_CONFIG.device)
+
+        # Create La-Transformer
+        self.model = LATransformerTest(
+            vit_base, lmbd=LA_TRANSFORMER_CONFIG.MODEL.LAMBDA).to(APP_CONFIG.device)
+
+        # Load LA-Transformer
+        save_path = os.path.join(LA_TRANSFORMER_CONFIG.MODEL.PATH)
+        self.model.load_state_dict(torch.load(save_path), strict=False)
 
         self.logger.info(
-            f"LA-Transformerモデル重み読み込み完了: {REID_MODEL_PATH_CONFIG.Path.la_transformer}")
+            f"LA-Transformerモデル重み読み込み完了: {LA_TRANSFORMER_CONFIG.MODEL.PATH}")
 
         self.transform = transforms.Compose([
-            transforms.Resize(LA_TRANSFORMER_CONFIG.INPUT.SIZE_TRAIN),
+            transforms.Resize(LA_TRANSFORMER_CONFIG.INPUT.SIZE_TEST),
             transforms.ToTensor(),
             transforms.Normalize(
                 mean=LA_TRANSFORMER_CONFIG.INPUT.PIXEL_MEAN,
                 std=LA_TRANSFORMER_CONFIG.INPUT.PIXEL_STD
             )
         ])
-
         self.logger.info(
-            f"LA-Transformerモデルの前処理設定完了: {LA_TRANSFORMER_CONFIG.INPUT.SIZE_TRAIN}")
-        print("LA-Transformerモデル初期化完了")
+            f"LA-Transformerモデルのトランスフォーム設定完了: {LA_TRANSFORMER_CONFIG.INPUT.SIZE_TEST}")
 
-    def extract_features(self, image_crop: np.ndarray, camera_id: int = 0, view_id: int = 0) -> np.ndarray:
+    def extract_features(self, image: np.ndarray, camera_id: int = 0, view_id: int = 0) -> torch.Tensor:
         """
         切り抜かれた人物画像から特徴量を抽出する
 
@@ -185,55 +181,40 @@ class ReIDModelManager:
         if self.model is None:
             raise Exception("ReIDモデルが初期化されていません")
 
-        if image_crop is None or image_crop.size == 0:
+        if image is None or image.size == 0:
             raise Exception("無効な画像が提供されました")
 
-        try:
-            # BGR to RGB変換
-            image_pil = Image.fromarray(image_crop[:, :, ::-1])
-            image_tensor = self.transform(
-                image_pil).unsqueeze(0).to(APP_CONFIG.device)
+        # BGR to RGB変換
+        image_pil = Image.fromarray(image[:, :, ::-1])
+        image_tensor = self.transform(image_pil).unsqueeze(0).to(APP_CONFIG.device)
 
-            with torch.no_grad():
-                if self.backend == "clip":
-                    features = self.model(x=image_tensor, get_image=True)
+        with torch.no_grad():
+            if self.backend == "clip":
+                feat = self.model(
+                    image_tensor, cam_label=camera_id, view_label=view_id)
+                feat = torch.nn.functional.normalize(feat, dim=1, p=2)
+                feat = feat.squeeze(0)
 
-                elif self.backend == "trans_reid":
-                    features = self.model(image_tensor, cam_label=camera_id, view_label=view_id)
+            elif self.backend == "trans_reid":
+                feat = self.model(
+                    image_tensor, cam_label=camera_id, view_label=view_id)
+                feat = torch.nn.functional.normalize(feat, dim=1, p=2)
+                feat = feat.squeeze(0)
 
-                elif self.backend == "la_transformer":
-                    features = self.model(image_tensor)
+            elif self.backend == "la_transformer":
+                feat = self.model(image_tensor)
+                fnorm = torch.norm(
+                    feat, p=2, dim=1, keepdim=True) * np.sqrt(14)
+                feat = feat.div(fnorm.expand_as(feat))
+                feat = feat.view((-1))
 
-                    # LA-Transformerは(1, 14, 768)の形状で返す
-                    # 論文通り：各パート特徴を保持（単純結合しない）
-                    if features.is_cuda:
-                        features = features.cpu()
+            else:
+                raise ValueError(f"不明なReIDバックエンドです: {self.backend}")
 
-                    # 論文通り：14個のパート特徴を結合して高次元特徴ベクトルを作成
-                    # Shape: (1, 14, 768) → (1, 10752)
-                    # これにより各パートの局所情報を全て保持
-                    batch_size = features.size(0)
-                    features = features.view(batch_size, -1)
-                    features = features.to(APP_CONFIG.device)
+        # 特徴ベクトルの検証
+        if feat.numel() == 0:
+            raise ValueError(f"{self.backend}モデルから空の特徴ベクトルが返されました")
 
-                else:
-                    raise ValueError(f"不明なReIDバックエンドです: {self.backend}")
-
-            # 特徴ベクトルの検証
-            if features.numel() == 0:
-                raise ValueError(f"{self.backend}モデルから空の特徴ベクトルが返されました")
-
-            # NumPy配列に変換
-            features_numpy = features.cpu().numpy()
-
-            # バッチ次元を除去 (1, feature_dim) -> (feature_dim,)
-            if features_numpy.ndim == 2 and features_numpy.shape[0] == 1:
-                features_numpy = features_numpy.squeeze(0)
-
-            self.logger.debug(
-                f"特徴抽出完了: 形状={features_numpy.shape}, バックエンド={self.backend}")
-            return features_numpy
-
-        except Exception as e:
-            self.logger.error(f"特徴抽出エラー: {e}")
-            raise Exception(f"特徴抽出に失敗しました: {e}")
+        self.logger.debug(
+            f"特徴抽出完了: 形状={feat}, バックエンド={self.backend}")
+        return feat
