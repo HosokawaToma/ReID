@@ -18,6 +18,7 @@ class YoloConfig:
 
 YOLO_CONFIG = YoloConfig()
 
+
 class YoloModelManager():
     """YOLOモデルの管理と人物検出・追跡を行うクラス"""
 
@@ -124,8 +125,7 @@ class YoloModelManager():
 
         try:
             detections = self._track_persons(frame)
-            bounding_boxes = [detection[0] for detection in detections]
-            return bounding_boxes
+            return detections
 
         except Exception as e:
             self.logger.error(f"人物切り抜き処理エラー: {e}")

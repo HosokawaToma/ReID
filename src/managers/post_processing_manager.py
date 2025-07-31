@@ -110,23 +110,20 @@ class PostProcessingManager:
             self.next_person_id += 1
             return self.next_person_id
 
-        q = query_feat.float()
-        G = torch.stack([g.float() for g in gallery_feats], dim=0)
+        best_id = -1
+        best_sim = 0
 
-        sims = G @ q
-        if sims.numel() == 0:
+        for gallery_feat, person_id in zip(gallery_feats, gallery_person_ids):
+            v1 = query_feat.view(-1)
+            v2 = gallery_feat.view(-1)
+            sim = torch.nn.functional.cosine_similarity(
+                v1, v2, dim=0, eps=1e-8)
+            if sim > best_sim and sim > self.similarity_threshold:
+                best_sim = sim
+                best_id = person_id
+
+        if best_id == -1:
             self.next_person_id += 1
             return self.next_person_id
 
-        rank1_idx = int(torch.argmax(sims).item())
-        best_sim = float(sims[rank1_idx])
-
-        if rank1_idx >= len(gallery_person_ids):
-            raise ValueError("gallery_feats と gallery_person_ids の対応が不一致です。")
-
-        best_id = int(gallery_person_ids[rank1_idx])
-        if best_sim >= self.similarity_threshold:
-            return best_id
-        else:
-            self.next_person_id += 1
-            return self.next_person_id
+        return best_id

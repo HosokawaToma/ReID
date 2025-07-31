@@ -21,7 +21,9 @@ class VideoAppConfig:
         input_dir_str: str = "./resources/videos/input"
         output_dir_str: str = "./resources/videos/output"
 
+
 VIDEO_APP_CONFIG = VideoAppConfig()
+
 
 class VideoReIDApp:
     """動画ファイル処理アプリケーション"""
@@ -157,7 +159,8 @@ class VideoReIDApp:
                     break
 
                 try:
-                    processed_frame = self._process_frame(frame, frame_count, video_id)
+                    processed_frame = self._process_frame(
+                        frame, frame_count, video_id)
                     out.write(processed_frame)
                     frame_count += 1
 
@@ -211,7 +214,8 @@ class VideoReIDApp:
                     self.logger.debug(
                         f"フレーム {frame_number}, 人物 {i+1}: ID {person_id} を割り当て")
 
-                    processed_frame = self._draw_detection(processed_frame, bounding_box, person_id)
+                    processed_frame = self._draw_detection(
+                        processed_frame, bounding_box, person_id)
                     self.data_manager.add_gallery(person_id, video_id, 0, feat)
 
                 except Exception as e:
@@ -282,6 +286,7 @@ class VideoReIDApp:
         """アプリケーションの実行"""
         self._initialize_process()
         self._main_process()
+
 
 def main():
     """メイン関数 - コマンドライン実行用"""
