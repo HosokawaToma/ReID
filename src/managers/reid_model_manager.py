@@ -1,10 +1,4 @@
 """ReID特徴抽出モジュール"""
-from config import (
-    APP_CONFIG,
-    CLIP_REID_CONFIG,
-    TRANS_REID_CONFIG,
-    LA_TRANSFORMER_CONFIG,
-)
 from reid_models.clip_reid.config import cfg as clip_cfg
 from reid_models.clip_reid.model.make_model_clipreid import make_model as make_clip_model
 from reid_models.clip_reid.datasets.make_dataloader_clipreid import make_dataloader as make_clip_dataloader
@@ -14,22 +8,65 @@ from reid_models.trans_reid.datasets.make_dataloader import make_dataloader as m
 from reid_models.la_transformer.LATransformer.model import LATransformerTest
 import timm
 import logging
-import warnings
 import numpy as np
 import os
-
+from dataclasses import dataclass
+from typing import List, Tuple
 import torch
 from PIL import Image
 from torchvision import transforms
 
-# 警告を完全に抑制
-warnings.filterwarnings("ignore", category=FutureWarning)
-warnings.filterwarnings("ignore", category=UserWarning)
-warnings.filterwarnings("ignore", category=DeprecationWarning)
+@dataclass
+class ClipReIDConfig:
+    """Configuration for CLIP-ReID model, matching YACS defaults."""
+    class Config:
+        FILE_PATH: str = "src/reid_models/clip_reid/configs/person/vit_clipreid.yml"
+        OPTIONS: List[str] = [
+            "MODEL.SIE_CAMERA",
+            "True",
+            "MODEL.SIE_COE",
+            "1.0",
+            "MODEL.STRIDE_SIZE",
+            "[12, 12]",
+            "DATASETS.ROOT_DIR",
+            "dataset",
+            "MODEL.PRETRAIN_PATH",
+            "models/jx_vit_base_p16_224-80ecf9dd.pth",
+            "TEST.WEIGHT",
+            "models/Market1501_clipreid_12x12sie_ViT-B-16_60.pth"
+        ]
 
+@dataclass
+class TransReIDConfig:
+    """Configuration for the Transformer‑based ReID model."""
+    class Config:
+        FILE_PATH: str = "src/reid_models/trans_reid/configs/Market/vit_transreid_stride.yml"
+        OPTIONS: List[str] = [
+            "DATASETS.ROOT_DIR",
+            "dataset",
+            "MODEL.PRETRAIN_PATH",
+            "models/jx_vit_base_p16_224-80ecf9dd.pth",
+            "TEST.WEIGHT",
+            "models/vit_transreid_market.pth"
+        ]
 
-# 各モデルのファクトリ関数をインポート
+@dataclass
+class LA_TransformerConfig:
+    class MODEL:
+        PATH: str = "models/net_best.pth"
+        NAME: str = "la_with_lmbd_8"
+        BACKBONE: str = "vit_base_patch16_224"
+        LAMBDA: float = 8
+        DEVICE: str = "cuda"
 
+    class INPUT:
+        SIZE_TEST: Tuple[int, int] = (224, 224)
+        PIXEL_MEAN: Tuple[float, float, float] = (0.485, 0.456, 0.406)
+        PIXEL_STD: Tuple[float, float, float] = (0.229, 0.224, 0.225)
+
+CLIP_REID_CONFIG = ClipReIDConfig()
+TRANS_REID_CONFIG = TransReIDConfig()
+LA_TRANSFORMER_CONFIG = LA_TransformerConfig()
 
 class ReIDModelManager:
     """ReID特徴抽出専用クラス"""
@@ -44,6 +81,9 @@ class ReIDModelManager:
         self.backend = backend
         self.model = None
         self.transform = None
+        self.device = None
+        self.sie_camera = False
+        self.sie_view = False
         self.logger = logging.getLogger(__name__)
 
         # モデルを初期化
@@ -68,7 +108,7 @@ class ReIDModelManager:
         else:
             raise ValueError(f"不明なReIDバックエンドです: {backend}")
 
-        # モデルをデバイスに移動し、評価モードに設定
+        self.model.to(self.device)
         self.model.eval()
 
         self.logger.info(f"{backend} ReIDモデルが正常にロードされました。")
@@ -87,6 +127,9 @@ class ReIDModelManager:
         self.logger.info(f"CLIP-ReIDモデル作成完了")
 
         model.load_param(clip_cfg.TEST.WEIGHT)
+        self.device = clip_cfg.TEST.DEVICE
+        self.sie_camera = clip_cfg.MODEL.SIE_CAMERA
+        self.sie_view = clip_cfg.MODEL.SIE_VIEW
         self.model = model
 
         self.logger.info(
@@ -119,6 +162,9 @@ class ReIDModelManager:
         self.logger.info(f"TransReIDモデル作成完了")
 
         model.load_param(trans_cfg.TEST.WEIGHT)
+        self.device = trans_cfg.TEST.DEVICE
+        self.sie_camera = trans_cfg.MODEL.SIE_CAMERA
+        self.sie_view = trans_cfg.MODEL.SIE_VIEW
         self.model = model
 
         self.logger.info(
@@ -138,20 +184,23 @@ class ReIDModelManager:
 
     def _initialize_la_transformer_model(self) -> None:
         """LA-Transformerモデルの初期化"""
-        print("LA-Transformerモデル初期化開始...")
-        # ベースモデルをtimmで作成
+        self.logger.info("LA-Transformerモデル初期化開始...")
+
+        self.device = LA_TRANSFORMER_CONFIG.MODEL.DEVICE
+        self.sie_camera = False
+        self.sie_view = False
+
         vit_base = timm.create_model(
             'vit_base_patch16_224', pretrained=True, num_classes=751)
 
-        vit_base = vit_base.to(APP_CONFIG.device)
+        vit_base = vit_base.to(self.device)
 
-        # Create La-Transformer
-        self.model = LATransformerTest(
-            vit_base, lmbd=LA_TRANSFORMER_CONFIG.MODEL.LAMBDA).to(APP_CONFIG.device)
+        model = LATransformerTest(
+            vit_base, lmbd=LA_TRANSFORMER_CONFIG.MODEL.LAMBDA).to(self.device)
 
-        # Load LA-Transformer
         save_path = os.path.join(LA_TRANSFORMER_CONFIG.MODEL.PATH)
-        self.model.load_state_dict(torch.load(save_path), strict=False)
+        model.load_state_dict(torch.load(save_path), strict=False)
+        self.model = model
 
         self.logger.info(
             f"LA-Transformerモデル重み読み込み完了: {LA_TRANSFORMER_CONFIG.MODEL.PATH}")
@@ -166,6 +215,8 @@ class ReIDModelManager:
         ])
         self.logger.info(
             f"LA-Transformerモデルのトランスフォーム設定完了: {LA_TRANSFORMER_CONFIG.INPUT.SIZE_TEST}")
+
+        self.logger.info("LA-Transformerモデル初期化完了")
 
     def extract_features(self, image: np.ndarray, camera_id: int = 0, view_id: int = 0) -> torch.Tensor:
         """
@@ -185,18 +236,26 @@ class ReIDModelManager:
 
         # BGR to RGB変換
         image_pil = Image.fromarray(image[:, :, ::-1])
-        image_tensor = self.transform(image_pil).unsqueeze(0).to(APP_CONFIG.device)
+        image_tensor = self.transform(image_pil).unsqueeze(0).to(self.device)
+
+        if self.sie_camera:
+            camera_id_tensor = torch.tensor(camera_id, dtype=torch.long)
+            camera_id_tensor.to(self.device)
+
+        if self.sie_view:
+            view_id_tensor = torch.tensor(view_id, dtype=torch.long)
+            view_id_tensor.to(self.device)
 
         with torch.no_grad():
             if self.backend == "clip":
                 feat = self.model(
-                    image_tensor, cam_label=camera_id, view_label=view_id)
+                    image_tensor, cam_label=camera_id_tensor, view_label=view_id_tensor)
                 feat = torch.nn.functional.normalize(feat, dim=1, p=2)
                 feat = feat.squeeze(0)
 
             elif self.backend == "trans_reid":
                 feat = self.model(
-                    image_tensor, cam_label=camera_id, view_label=view_id)
+                    image_tensor, cam_label=camera_id_tensor, view_label=view_id_tensor)
                 feat = torch.nn.functional.normalize(feat, dim=1, p=2)
                 feat = feat.squeeze(0)
 

@@ -1,36 +1,47 @@
 """複数人物画像直接処理アプリケーション"""
-from config import PersonImageAppConfig
+from dataclasses import dataclass
 from managers.post_processing_manager import PostProcessingManager
 from managers.reid_model_manager import ReIDModelManager
 from managers.data_set_manager import DataSetManager
 from managers.data_manager import DataManager
-import logging
-import warnings
-import numpy as np
-import sys
-import os
 from pathlib import Path
-from typing import List, Tuple
+import logging
+import numpy as np
 
-# 警告を完全に抑制（環境変数レベル）
-os.environ['PYTHONWARNINGS'] = 'ignore'
 
-# 警告の抑制（より強力な方法）
-warnings.filterwarnings("ignore", category=FutureWarning)
-warnings.filterwarnings("ignore", category=UserWarning)
-warnings.filterwarnings("ignore", category=DeprecationWarning)
-warnings.filterwarnings("ignore", message=".*Cython evaluation.*")
-warnings.filterwarnings(
-    "ignore", message=".*Importing from timm.models.layers.*")
+@dataclass
+class PersonImageAppConfig:
+    class REID_BACKEND:
+        name: str = "clip"
 
+    class DATA_SET:
+        name: str = "market10"
+
+    class Directories:
+        input_dir_str: str = "./resources/person_images/input"
+        output_dir_str: str = "./resources/person_images/output"
+
+    class PostProcessing:
+        max_rank: int = 50
+        metric: str = "cosine"
+        use_metric_cuhk03: bool = False
+        use_cython: bool = False
+
+PERSON_IMAGE_APP_CONFIG = PersonImageAppConfig()
 
 class PersonImageReIDApp:
     """複数人物画像直接処理アプリケーション"""
 
     def __init__(
         self,
-        data_set_name: str = PersonImageAppConfig.Default.data_set_name,
-        reid_backend: str = PersonImageAppConfig.Default.reid_backend
+        data_set_name: str = PERSON_IMAGE_APP_CONFIG.DATA_SET.name,
+        reid_backend: str = PERSON_IMAGE_APP_CONFIG.REID_BACKEND.name,
+        input_dir_str: str = PERSON_IMAGE_APP_CONFIG.Directories.input_dir_str,
+        output_dir_str: str = PERSON_IMAGE_APP_CONFIG.Directories.output_dir_str,
+        max_rank: int = PERSON_IMAGE_APP_CONFIG.PostProcessing.max_rank,
+        metric: str = PERSON_IMAGE_APP_CONFIG.PostProcessing.metric,
+        use_metric_cuhk03: bool = PERSON_IMAGE_APP_CONFIG.PostProcessing.use_metric_cuhk03,
+        use_cython: bool = PERSON_IMAGE_APP_CONFIG.PostProcessing.use_cython
     ) -> None:
         """初期化
 
@@ -38,25 +49,17 @@ class PersonImageReIDApp:
             data_set_name: データセット名
             reid_backend: 使用するReIDバックエンド ('clip', 'trans_reid', 'la_transformer')
         """
-        print("PersonImageReIDApp初期化開始...")
-
         self.data_set_name = data_set_name
         self.reid_backend = reid_backend
-
-        # ログ設定
-        self._setup_logging()
-
-        # ディレクトリの設定
-        self._initialize_directories()
-
-        # コンポーネント初期化
-        self._initialize_components()
-
-        print("PersonImageReIDApp初期化完了")
+        self.input_dir_str = input_dir_str
+        self.output_dir_str = output_dir_str
+        self.max_rank = max_rank
+        self.metric = metric
+        self.use_metric_cuhk03 = use_metric_cuhk03
+        self.use_cython = use_cython
 
     def _setup_logging(self) -> None:
         """ログ設定の初期化"""
-        print("ログ設定開始...")
         logging.basicConfig(
             level=logging.INFO,
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -66,23 +69,18 @@ class PersonImageReIDApp:
             ]
         )
         self.logger = logging.getLogger(__name__)
-        print("ログ設定完了")
 
-    def _initialize_directories(self) -> None:
+    def _set_directories(self) -> None:
         """ディレクトリの設定"""
-        print("ディレクトリ設定開始...")
         self.logger.info("ディレクトリの設定を開始します...")
-        self.input_dir_path = Path(
-            PersonImageAppConfig.Directories.input_dir_str)
-        self.output_dir_path = Path(
-            PersonImageAppConfig.Directories.output_dir_str)
+        self.input_dir_path = Path(self.input_dir_str)
+        self.output_dir_path = Path(self.output_dir_str)
         self.data_set_dir_path = self.input_dir_path / self.data_set_name
         self.data_set_query_dir_path = self.data_set_dir_path / "query"
         self.data_set_gallery_dir_path = self.data_set_dir_path / "gallery"
         self.logger.info("ディレクトリの設定が完了しました")
-        print("ディレクトリ設定完了")
 
-    def _initialize_components(self) -> None:
+    def _set_components(self) -> None:
         """コンポーネントの初期化"""
         self.logger.info("コンポーネントの初期化を開始します...")
 
@@ -94,14 +92,18 @@ class PersonImageReIDApp:
         self.reid_model_manager = ReIDModelManager(
             backend=self.reid_backend)
 
-        self.post_processing_manager = PostProcessingManager()
+        self.post_processing_manager = PostProcessingManager(
+            max_rank=self.max_rank,
+            metric=self.metric,
+            use_metric_cuhk03=self.use_metric_cuhk03,
+            use_cython=self.use_cython
+        )
 
         self.logger.info("全てのコンポーネントの初期化が完了しました")
 
 
     def _validate_directories(self) -> None:
         """ディレクトリの存在確認と作成"""
-        print("ディレクトリ検証開始...")
         self.logger.info("ディレクトリの存在確認と作成を開始します...")
 
         # 入力ディレクトリの確認
@@ -140,18 +142,22 @@ class PersonImageReIDApp:
                 f"指定されたパスはディレクトリではありません: {self.data_set_gallery_dir_path}")
 
         # 出力ディレクトリの作成
-        try:
-            self.output_dir_path.mkdir(parents=True, exist_ok=True)
-            self.logger.info(f"出力ディレクトリを準備しました: {self.output_dir_path}")
-        except Exception as e:
-            raise OSError(f"出力ディレクトリの作成に失敗しました: {e}")
+        self.output_dir_path.mkdir(parents=True, exist_ok=True)
+        self.logger.info(f"出力ディレクトリを準備しました: {self.output_dir_path}")
 
         self.logger.info("ディレクトリの存在確認と作成が完了しました")
-        print("ディレクトリ検証完了")
+
+    def _initialize_process(self) -> None:
+        """処理の初期化"""
+        self.logger.info("処理の初期化を開始します...")
+        self._setup_logging()
+        self._set_directories()
+        self._validate_directories()
+        self._set_components()
+        self.logger.info("処理の初期化が完了しました")
 
     def _main_process(self) -> None:
         """データの読み込み"""
-        print("メインプロセス開始...")
         self.logger.info("データセットから特徴量を抽出します...")
 
         # Gallery画像の処理
@@ -161,11 +167,9 @@ class PersonImageReIDApp:
                 continue
 
             try:
-                process_id, camera_id, _, image = self.data_set_manager.load_image(
-                    file_path)
-                features = self.reid_model_manager.extract_features(
-                    image, camera_id)
-                self.data_manager.add_gallery(process_id, camera_id, features)
+                person_id, camera_id, view_id, image = self.data_set_manager.load_image(file_path)
+                features = self.reid_model_manager.extract_features(image, camera_id, view_id)
+                self.data_manager.add_gallery(person_id, camera_id, view_id, features)
                 gallery_count += 1
             except Exception as e:
                 self.logger.warning(
@@ -179,111 +183,18 @@ class PersonImageReIDApp:
         for file_path in self.data_set_query_dir_path.glob("*"):
             if not file_path.is_file():
                 continue
-            process_id, camera_id, _, image = self.data_set_manager.load_image(
-                file_path)
-            features = self.reid_model_manager.extract_features(
-                image, camera_id)
-            self.data_manager.add_query(process_id, camera_id, features)
-            query_count += 1
+            try:
+                person_id, camera_id, view_id, image = self.data_set_manager.load_image(file_path)
+                features = self.reid_model_manager.extract_features(image, camera_id, view_id)
+                self.data_manager.add_query(person_id, camera_id, view_id, features)
+                query_count += 1
+            except Exception as e:
+                self.logger.warning(
+                    f"Query画像の処理でエラーが発生しました: {file_path} - {e}")
+                continue
 
         self.logger.info(f"Query画像の処理が完了しました: {query_count}件")
         self.logger.info("データセットから特徴量の抽出が完了しました")
-        print("メインプロセス完了")
-
-    def _post_process(self) -> None:
-        """後処理"""
-        print("後処理開始...")
-        if not self.data_manager.query_feats or not self.data_manager.gallery_feats:
-            raise Exception("特徴量が抽出されていません。")
-
-        # re-rankingの結果を格納する変数
-        re_ranking_results = None
-
-        if PersonImageAppConfig.PostProcessing.re_ranking:
-            self.logger.info("K-reciprocal re-rankingを開始します...")
-            re_ranking_results = self.post_processing_manager.k_reciprocal_re_ranking(
-                self.data_manager.query_feats,
-                self.data_manager.gallery_feats
-            )
-            self.logger.info("K-reciprocal re-rankingが完了しました")
-
-        self.logger.info("評価を開始します...")
-
-        if re_ranking_results is not None:
-            # re-rankingの結果を使用して評価
-            self.logger.info("re-ranking結果を使用して評価を実行します...")
-            cmc, mAP = self._evaluate_with_re_ranking_results(
-                re_ranking_results,
-                self.data_manager.query_process_ids,
-                self.data_manager.gallery_process_ids,
-                self.data_manager.query_camera_ids,
-                self.data_manager.gallery_camera_ids
-            )
-        else:
-            # 通常の評価
-            cmc, mAP = self.post_processing_manager.evaluate(
-                self.data_manager.query_feats,
-                self.data_manager.gallery_feats,
-                self.data_manager.query_process_ids,
-                self.data_manager.gallery_process_ids,
-                self.data_manager.query_camera_ids,
-                self.data_manager.gallery_camera_ids
-            )
-
-        self.logger.info("評価が完了しました")
-        self.logger.info(f"評価結果 - CMC: {cmc}, mAP: {mAP:.4f}")
-
-        self._save_evaluation_results(cmc, mAP)
-
-        self.logger.info("後処理完了")
-
-    def _evaluate_with_re_ranking_results(
-        self,
-        re_ranking_dist: np.ndarray,
-        query_process_ids: List[int],
-        gallery_process_ids: List[int],
-        query_camera_ids: List[int],
-        gallery_camera_ids: List[int]
-    ) -> Tuple[np.ndarray, float]:
-        """
-        re-ranking結果を使用して評価を実行する
-
-        Args:
-            re_ranking_dist: re-ranking後の距離行列
-            query_process_ids: クエリプロセスIDのリスト
-            gallery_process_ids: ギャラリープロセスIDのリスト
-            query_camera_ids: クエリカメラIDのリスト
-            gallery_camera_ids: ギャラリーカメラIDのリスト
-
-        Returns:
-            Tuple[np.ndarray, float]: CMCスコアとmAPスコア
-        """
-        try:
-            # IDとカメラIDをNumPy配列に変換
-            q_pids = np.asarray(query_process_ids, dtype=np.int64)
-            g_pids = np.asarray(gallery_process_ids, dtype=np.int64)
-            q_camids = np.asarray(query_camera_ids, dtype=np.int64)
-            g_camids = np.asarray(gallery_camera_ids, dtype=np.int64)
-
-            # 評価実行
-            from torchreid import metrics
-            from config import POST_PROCESSING_CONFIG
-            cmc, mAP = metrics.evaluate_rank(
-                re_ranking_dist,
-                q_pids,
-                g_pids,
-                q_camids,
-                g_camids,
-                max_rank=POST_PROCESSING_CONFIG.EVALUATE.MAX_RANK,
-                use_metric_cuhk03=POST_PROCESSING_CONFIG.EVALUATE.USE_METRIC_CUHK03,
-                use_cython=POST_PROCESSING_CONFIG.EVALUATE.USE_CYTHON
-            )
-
-            return cmc, mAP
-
-        except Exception as e:
-            self.logger.error(f"re-ranking結果での評価でエラーが発生しました: {e}")
-            raise Exception(f"re-ranking結果での評価に失敗しました: {e}")
 
     def _save_evaluation_results(self, cmc: np.ndarray, mAP: float) -> None:
         """評価結果をファイルに保存"""
@@ -305,22 +216,39 @@ class PersonImageReIDApp:
         except Exception as e:
             self.logger.error(f"評価結果の保存でエラーが発生しました: {e}")
 
+    def _post_process(self) -> None:
+        """後処理"""
+        self.logger.info("後処理を開始します...")
+        if not self.data_manager.query_feats or not self.data_manager.gallery_feats:
+            raise Exception("特徴量が抽出されていません。")
+
+        self.logger.info("評価を開始します...")
+
+        cmc, mAP = self.post_processing_manager.evaluate(
+            self.data_manager.query_feats,
+            self.data_manager.gallery_feats,
+            self.data_manager.query_person_ids,
+            self.data_manager.gallery_person_ids,
+            self.data_manager.query_camera_ids,
+            self.data_manager.gallery_camera_ids
+        )
+
+        self.logger.info("評価が完了しました")
+        self.logger.info(f"評価結果 - CMC: {cmc}, mAP: {mAP:.4f}")
+
+        self._save_evaluation_results(cmc, mAP)
+
+        self.logger.info("後処理が完了しました")
+
     def run(self) -> None:
         """アプリケーションの実行"""
-        print("アプリケーション実行開始...")
         self.logger.info("アプリケーションの実行を開始します...")
 
-        try:
-            self._validate_directories()
-            self._main_process()
-            self._post_process()
-            self.logger.info("アプリケーションの実行が完了しました")
-            print("アプリケーション実行完了")
+        self._initialize_process()
+        self._main_process()
+        self._post_process()
 
-        except Exception as e:
-            print(f"アプリケーション実行エラー: {e}")
-            self.logger.error(f"アプリケーションの実行でエラーが発生しました: {e}")
-            raise
+        self.logger.info("アプリケーションの実行が完了しました")
 
 
 def main():

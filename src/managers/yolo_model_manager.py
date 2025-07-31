@@ -1,14 +1,22 @@
 """YOLO管理クラス"""
 
+from dataclasses import dataclass
 from typing import List, Tuple
 import logging
 
 import numpy as np
 from ultralytics import YOLO
-from ultralytics.engine.results import Results
 
-from config import YOLO_CONFIG
 
+@dataclass
+class YoloConfig:
+    class MODEL:
+        model_path: str = "models/yolo11n-pose.pt"
+        confidence_threshold: float = 0.5
+        person_class_id: int = 0
+
+
+YOLO_CONFIG = YoloConfig()
 
 class YoloModelManager():
     """YOLOモデルの管理と人物検出・追跡を行うクラス"""
