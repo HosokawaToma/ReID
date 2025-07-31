@@ -37,6 +37,7 @@ class VideoReIDApp:
         Args:
             reid_backend: 使用するReIDバックエンド ('clip', 'trans_reid', 'la_transformer')
         """
+        self._setup_logging()
         self.reid_backend = reid_backend
         self.input_dir_str = input_dir_str
         self.output_dir_str = output_dir_str
@@ -86,7 +87,6 @@ class VideoReIDApp:
     def _initialize_process(self) -> None:
         """アプリケーションの初期化"""
         self.logger.info("アプリケーションの初期化を開始します...")
-        self._setup_logging()
         self._set_directories()
         self._validate_directories()
         self._set_components()
@@ -157,8 +157,7 @@ class VideoReIDApp:
                     break
 
                 try:
-                    processed_frame, frame_persons = self._process_frame(
-                        frame, frame_count, video_id)
+                    processed_frame = self._process_frame(frame, frame_count, video_id)
                     out.write(processed_frame)
                     frame_count += 1
 
@@ -197,7 +196,6 @@ class VideoReIDApp:
 
             self.logger.debug(
                 f"フレーム {frame_number}: {len(person_detections)}人の人物を検出")
-            detected_person_ids = []
             processed_frame = frame.copy()
 
             for i, (bounding_box, person_crop) in enumerate(person_detections):
@@ -208,22 +206,20 @@ class VideoReIDApp:
                         person_crop, camera_id=video_id)
 
                     person_id = self.post_processing_manager.assign_person_id(
-                        feat, video_id, frame_number)
+                        feat, self.data_manager.gallery_feats, self.data_manager.gallery_person_ids)
 
                     self.logger.debug(
                         f"フレーム {frame_number}, 人物 {i+1}: ID {person_id} を割り当て")
 
-                    # バウンディングボックスとIDを描画
-                    processed_frame = self._draw_detection(
-                        processed_frame, bounding_box, person_id)
-                    detected_person_ids.append(person_id)
+                    processed_frame = self._draw_detection(processed_frame, bounding_box, person_id)
+                    self.data_manager.add_gallery(person_id, video_id, 0, feat)
 
                 except Exception as e:
                     self.logger.warning(
                         f"人物処理エラー (フレーム {frame_number}, 人物 {i+1}): {e}")
                     continue
 
-            return processed_frame, detected_person_ids
+            return processed_frame
 
         except Exception as e:
             self.logger.error(f"フレーム処理エラー (フレーム {frame_number}): {e}")

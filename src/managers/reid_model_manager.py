@@ -127,7 +127,7 @@ class ReIDModelManager:
         self.logger.info(f"CLIP-ReIDモデル作成完了")
 
         model.load_param(clip_cfg.TEST.WEIGHT)
-        self.device = clip_cfg.TEST.DEVICE
+        self.device = clip_cfg.MODEL.DEVICE
         self.sie_camera = clip_cfg.MODEL.SIE_CAMERA
         self.sie_view = clip_cfg.MODEL.SIE_VIEW
         self.model = model
@@ -162,7 +162,7 @@ class ReIDModelManager:
         self.logger.info(f"TransReIDモデル作成完了")
 
         model.load_param(trans_cfg.TEST.WEIGHT)
-        self.device = trans_cfg.TEST.DEVICE
+        self.device = trans_cfg.MODEL.DEVICE
         self.sie_camera = trans_cfg.MODEL.SIE_CAMERA
         self.sie_view = trans_cfg.MODEL.SIE_VIEW
         self.model = model
@@ -237,6 +237,8 @@ class ReIDModelManager:
         # BGR to RGB変換
         image_pil = Image.fromarray(image[:, :, ::-1])
         image_tensor = self.transform(image_pil).unsqueeze(0).to(self.device)
+        camera_id_tensor = None
+        view_id_tensor = None
 
         if self.sie_camera:
             camera_id_tensor = torch.tensor(camera_id, dtype=torch.long)

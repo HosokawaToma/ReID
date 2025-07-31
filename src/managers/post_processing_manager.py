@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from torchreid import metrics
 import logging
 import torch
-import torch.nn.functional as F
 import numpy as np
 from typing import List, Tuple
 
@@ -18,6 +17,7 @@ class PostProcessingConfig:
 
     class ASSIGN_PERSON_ID:
         SIMILARITY_THRESHOLD: float = 0.5
+
 
 POST_PROCESSING_CONFIG = PostProcessingConfig()
 
@@ -41,6 +41,7 @@ class PostProcessingManager:
         self.use_metric_cuhk03 = use_metric_cuhk03
         self.use_cython = use_cython
         self.similarity_threshold = similarity_threshold
+        self.next_person_id = 1
         self.logger.info(
             f"人物ID割り当ての類似度閾値を{self.similarity_threshold}に設定しました")
         print("PostProcessingManager初期化完了")
@@ -72,12 +73,9 @@ class PostProcessingManager:
         q = torch.stack(query_feats, 0)  # (Nq,D)
         g = torch.stack(gallery_feats, 0)  # (Ng,D)
 
-        # L2正規化
-        q = F.normalize(q, p=2, dim=1)
-        g = F.normalize(g, p=2, dim=1)
-
         # 距離行列 (Nq,Ng)
-        dist = metrics.compute_distance_matrix(q, g, metric=self.metric).cpu().numpy()
+        dist = metrics.compute_distance_matrix(
+            q, g, metric=self.metric).cpu().numpy()
 
         # IDとカメラIDをNumPy配列に変換
         q_pids = np.asarray(query_person_ids, dtype=np.int64)
@@ -109,19 +107,16 @@ class PostProcessingManager:
         人物IDを割り当てる
         """
         if query_feat is None or not gallery_feats:
-            return -1
+            self.next_person_id += 1
+            return self.next_person_id
 
-        eps = 1e-12
-
-        q = F.normalize(query_feat.float().view(-1),
-                        dim=0, eps=eps)
-        G = torch.stack([g.float().view(-1)
-                        for g in gallery_feats], dim=0)
-        G = F.normalize(G, dim=1, eps=eps)
+        q = query_feat.float()
+        G = torch.stack([g.float() for g in gallery_feats], dim=0)
 
         sims = G @ q
         if sims.numel() == 0:
-            return -1
+            self.next_person_id += 1
+            return self.next_person_id
 
         rank1_idx = int(torch.argmax(sims).item())
         best_sim = float(sims[rank1_idx])
@@ -130,4 +125,8 @@ class PostProcessingManager:
             raise ValueError("gallery_feats と gallery_person_ids の対応が不一致です。")
 
         best_id = int(gallery_person_ids[rank1_idx])
-        return best_id if best_sim >= self.similarity_threshold else -1
+        if best_sim >= self.similarity_threshold:
+            return best_id
+        else:
+            self.next_person_id += 1
+            return self.next_person_id
