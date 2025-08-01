@@ -187,7 +187,7 @@ class PersonImageReIDApp:
                 person_id, camera_id, view_id, image = self.data_set_manager.load_image(file_path)
                 if camera_id == -1:
                     continue
-                features = self.reid_model_manager.extract_features(image, camera_id, view_id)
+                features = self.reid_model_manager.extract_features(image, camera_id, view_id,)
                 self.data_manager.add_query(person_id, camera_id, view_id, features)
                 query_count += 1
             except Exception as e:

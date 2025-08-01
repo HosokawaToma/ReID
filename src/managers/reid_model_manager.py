@@ -5,13 +5,10 @@ from reid_models.clip_reid.datasets.make_dataloader_clipreid import make_dataloa
 from reid_models.trans_reid.config import cfg as trans_cfg
 from reid_models.trans_reid.model.make_model import make_model as make_transreid_model
 from reid_models.trans_reid.datasets.make_dataloader import make_dataloader as make_trans_dataloader
-from reid_models.la_transformer.LATransformer.model import LATransformerTest
-import timm
 import logging
 import numpy as np
-import os
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import List
 import torch
 from PIL import Image
 from torchvision import transforms
@@ -50,23 +47,8 @@ class TransReIDConfig:
             "models/vit_transreid_market.pth"
         ]
 
-@dataclass
-class LA_TransformerConfig:
-    class MODEL:
-        PATH: str = "models/net_best.pth"
-        NAME: str = "la_with_lmbd_8"
-        BACKBONE: str = "vit_base_patch16_224"
-        LAMBDA: float = 8
-        DEVICE: str = "cuda"
-
-    class INPUT:
-        SIZE_TEST: Tuple[int, int] = (224, 224)
-        PIXEL_MEAN: Tuple[float, float, float] = (0.485, 0.456, 0.406)
-        PIXEL_STD: Tuple[float, float, float] = (0.229, 0.224, 0.225)
-        INTERPOLATION: int = 3
 CLIP_REID_CONFIG = ClipReIDConfig()
 TRANS_REID_CONFIG = TransReIDConfig()
-LA_TRANSFORMER_CONFIG = LA_TransformerConfig()
 
 class ReIDModelManager:
     """ReID特徴抽出専用クラス"""
@@ -81,8 +63,6 @@ class ReIDModelManager:
         self.backend = backend
         self.model = None
         self.transform = None
-        self.query_transform = None
-        self.gallery_transform = None
         self.device = None
         self.sie_camera = False
         self.sie_view = False
@@ -104,8 +84,6 @@ class ReIDModelManager:
             self._initialize_clip_model()
         elif backend == "trans_reid":
             self._initialize_transreid_model()
-        elif backend == "la_transformer":
-            self._initialize_la_transformer_model()
         else:
             raise ValueError(f"不明なReIDバックエンドです: {backend}")
 
@@ -183,63 +161,11 @@ class ReIDModelManager:
         self.logger.info(
             f"TransReIDモデルのトランスフォーム設定完了: {trans_cfg.INPUT.SIZE_TEST}")
 
-    def _initialize_la_transformer_model(self) -> None:
-        """LA-Transformerモデルの初期化"""
-        self.logger.info("LA-Transformerモデル初期化開始...")
-
-        self.device = LA_TRANSFORMER_CONFIG.MODEL.DEVICE
-        self.sie_camera = False
-        self.sie_view = False
-
-        vit_base = timm.create_model(
-            'vit_base_patch16_224', pretrained=True, num_classes=751)
-
-        vit_base = vit_base.to(self.device)
-
-        model = LATransformerTest(
-            vit_base, lmbd=LA_TRANSFORMER_CONFIG.MODEL.LAMBDA).to(self.device)
-
-        save_path = os.path.join(LA_TRANSFORMER_CONFIG.MODEL.PATH)
-        model.load_state_dict(torch.load(save_path), strict=False)
-        self.model = model
-
-        self.logger.info(
-            f"LA-Transformerモデル重み読み込み完了: {LA_TRANSFORMER_CONFIG.MODEL.PATH}")
-
-        self.gallery_transform = transforms.Compose([
-            transforms.Resize(
-                LA_TRANSFORMER_CONFIG.INPUT.SIZE_TEST,
-                interpolation=LA_TRANSFORMER_CONFIG.INPUT.INTERPOLATION
-            ),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=LA_TRANSFORMER_CONFIG.INPUT.PIXEL_MEAN,
-                std=LA_TRANSFORMER_CONFIG.INPUT.PIXEL_STD
-            )
-        ])
-        self.query_transform = transforms.Compose([
-            transforms.Resize(
-                LA_TRANSFORMER_CONFIG.INPUT.SIZE_TEST,
-                interpolation=LA_TRANSFORMER_CONFIG.INPUT.INTERPOLATION
-            ),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=LA_TRANSFORMER_CONFIG.INPUT.PIXEL_MEAN,
-                std=LA_TRANSFORMER_CONFIG.INPUT.PIXEL_STD
-            )
-        ])
-        self.logger.info(
-            f"LA-Transformerモデルのトランスフォーム設定完了: {LA_TRANSFORMER_CONFIG.INPUT.SIZE_TEST}")
-
-        self.logger.info("LA-Transformerモデル初期化完了")
-
     def extract_features(
         self,
         image: np.ndarray,
         camera_id: int = 0,
         view_id: int = 0,
-        image_type: str = None
     ) -> torch.Tensor:
         """
         切り抜かれた人物画像から特徴量を抽出する
@@ -247,7 +173,6 @@ class ReIDModelManager:
         :param image_crop: 人物の切り抜き画像 (BGR format)
         :param camera_id: カメラID (デフォルト: 0)
         :param view_id: ビューID (デフォルト: 0)
-        :param image_type: 画像の種類 (None or "gallery" or "query")
         :return: L2正規化された特徴量ベクトル
         :raises Exception: 特徴抽出に失敗した場合
         """
@@ -258,12 +183,7 @@ class ReIDModelManager:
             raise Exception("無効な画像が提供されました")
 
         image_pil = Image.fromarray(image[:, :, ::-1])
-        if image_type == "gallery":
-            image_tensor = self.gallery_transform(image_pil).unsqueeze(0).to(self.device)
-        elif image_type == "query":
-            image_tensor = self.query_transform(image_pil).unsqueeze(0).to(self.device)
-        else:
-            image_tensor = self.transform(image_pil).unsqueeze(0).to(self.device)
+        image_tensor = self.transform(image_pil).unsqueeze(0).to(self.device)
         camera_id_tensor = None
         view_id_tensor = None
 
@@ -287,13 +207,6 @@ class ReIDModelManager:
                     image_tensor, cam_label=camera_id_tensor, view_label=view_id_tensor)
                 feat = torch.nn.functional.normalize(feat, dim=1, p=2)
                 feat = feat.squeeze(0)
-
-            elif self.backend == "la_transformer":
-                feat = self.model(image_tensor)
-                fnorm = torch.norm(
-                    feat, p=2, dim=1, keepdim=True) * np.sqrt(14)
-                feat = feat.div(fnorm.expand_as(feat))
-                feat = feat.view((-1))
 
             else:
                 raise ValueError(f"不明なReIDバックエンドです: {self.backend}")
