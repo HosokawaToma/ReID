@@ -69,21 +69,17 @@ class PostProcessingManager:
         Returns:
             Tuple[np.ndarray, float]: CMCスコアとmAPスコア
         """
-        # 特徴量をテンソルに変換
-        q = torch.stack(query_feats, 0)  # (Nq,D)
-        g = torch.stack(gallery_feats, 0)  # (Ng,D)
+        q = torch.stack(query_feats, 0)
+        g = torch.stack(gallery_feats, 0)
 
-        # 距離行列 (Nq,Ng)
         dist = metrics.compute_distance_matrix(
             q, g, metric=self.metric).cpu().numpy()
 
-        # IDとカメラIDをNumPy配列に変換
         q_pids = np.asarray(query_person_ids, dtype=np.int64)
         g_pids = np.asarray(gallery_person_ids, dtype=np.int64)
         q_camids = np.asarray(query_camera_ids, dtype=np.int64)
         g_camids = np.asarray(gallery_camera_ids, dtype=np.int64)
 
-        # 評価実行
         cmc, mAP = metrics.evaluate_rank(
             dist,
             q_pids,

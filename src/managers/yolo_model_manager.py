@@ -50,14 +50,13 @@ class YoloModelManager():
         try:
             self.logger.debug(f"YOLO推論開始 - フレームサイズ: {frame.shape}")
 
-            # YOLOで人物検出・追跡を実行
             results = self.model.track(
                 frame,
                 persist=True,
                 classes=[YOLO_CONFIG.MODEL.person_class_id],
                 conf=YOLO_CONFIG.MODEL.confidence_threshold,
                 verbose=False,
-                tracker="bytetrack.yaml"  # より安定した追跡アルゴリズムを使用
+                tracker="bytetrack.yaml"
             )
 
             if not results or len(results) == 0:
@@ -65,7 +64,7 @@ class YoloModelManager():
                 return []
 
             detections = []
-            result = results[0]  # 最初の結果を使用
+            result = results[0]
 
             self.logger.debug(f"YOLO推論完了 - 結果数: {len(results)}")
 
@@ -75,21 +74,18 @@ class YoloModelManager():
                 for i, box in enumerate(result.boxes):
                     box_id = int(box.id[0].cpu().numpy())
 
-                    # バウンディングボックス座標を取得
                     x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().astype(int)
                     confidence = float(box.conf[0].cpu().numpy())
 
                     self.logger.debug(
                         f"ボックス {i+1}: 座標=({x1},{y1},{x2},{y2}), 信頼度={confidence:.3f}")
 
-                    # フレーム境界内にクリップ
                     h, w = frame.shape[:2]
                     x1 = max(0, min(x1, w-1))
                     y1 = max(0, min(y1, h-1))
                     x2 = max(x1+1, min(x2, w))
                     y2 = max(y1+1, min(y2, h))
 
-                    # 人物領域を切り抜き
                     person_crop = frame[y1:y2, x1:x2]
 
                     if person_crop.size > 0:
@@ -102,7 +98,6 @@ class YoloModelManager():
             else:
                 self.logger.debug("検出されたボックスがありません")
 
-            # デバッグ情報をログ出力
             if detections:
                 self.logger.debug(f"人物検出数: {len(detections)}")
             else:

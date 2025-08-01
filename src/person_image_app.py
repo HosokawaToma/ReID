@@ -160,7 +160,6 @@ class PersonImageReIDApp:
         """データの読み込み"""
         self.logger.info("データセットから特徴量を抽出します...")
 
-        # Gallery画像の処理
         gallery_count = 0
         for file_path in self.data_set_gallery_dir_path.glob("*"):
             if not file_path.is_file():
@@ -180,7 +179,6 @@ class PersonImageReIDApp:
 
         self.logger.info(f"Gallery画像の処理が完了しました: {gallery_count}件")
 
-        # Query画像の処理
         query_count = 0
         for file_path in self.data_set_query_dir_path.glob("*"):
             if not file_path.is_file():

@@ -86,7 +86,6 @@ class ReIDModelManager:
         self.sie_view = False
         self.logger = logging.getLogger(__name__)
 
-        # モデルを初期化
         self._initialize_model(backend)
         print(f"ReIDModelManager初期化完了: {backend}")
 
@@ -234,7 +233,6 @@ class ReIDModelManager:
         if image is None or image.size == 0:
             raise Exception("無効な画像が提供されました")
 
-        # BGR to RGB変換
         image_pil = Image.fromarray(image[:, :, ::-1])
         image_tensor = self.transform(image_pil).unsqueeze(0).to(self.device)
         camera_id_tensor = None
@@ -271,7 +269,6 @@ class ReIDModelManager:
             else:
                 raise ValueError(f"不明なReIDバックエンドです: {self.backend}")
 
-        # 特徴ベクトルの検証
         if feat.numel() == 0:
             raise ValueError(f"{self.backend}モデルから空の特徴ベクトルが返されました")
 
