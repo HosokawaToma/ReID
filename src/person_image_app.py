@@ -167,7 +167,7 @@ class PersonImageReIDApp:
 
             try:
                 person_id, camera_id, view_id, image = self.data_set_manager.load_image(file_path)
-                if camera_id == -1:
+                if person_id == -1:
                     continue
                 features = self.reid_model_manager.extract_features(image, camera_id, view_id)
                 self.data_manager.add_gallery(person_id, camera_id, view_id, features)
@@ -185,7 +185,7 @@ class PersonImageReIDApp:
                 continue
             try:
                 person_id, camera_id, view_id, image = self.data_set_manager.load_image(file_path)
-                if camera_id == -1:
+                if person_id == -1:
                     continue
                 features = self.reid_model_manager.extract_features(image, camera_id, view_id,)
                 self.data_manager.add_query(person_id, camera_id, view_id, features)
