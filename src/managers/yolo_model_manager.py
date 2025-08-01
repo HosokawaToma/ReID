@@ -40,12 +40,12 @@ class YoloModelManager():
             self.logger.error(f"YOLOモデルの初期化に失敗しました: {e}")
             raise Exception(f"YOLOモデルの初期化に失敗しました: {e}")
 
-    def _track_persons(self, frame: np.ndarray) -> List[Tuple[np.ndarray, np.ndarray]]:
+    def _track_persons(self, frame: np.ndarray) -> List[Tuple[np.ndarray, np.ndarray, int]]:
         """
         フレーム内の人物を検出・追跡する
 
         :param frame: 入力フレーム
-        :return: (バウンディングボックス, 人物画像)のタプルのリスト
+        :return: (バウンディングボックス, 人物画像, 人物ID)のタプルのリスト
         """
         try:
             self.logger.debug(f"YOLO推論開始 - フレームサイズ: {frame.shape}")
@@ -73,6 +73,8 @@ class YoloModelManager():
                 self.logger.debug(f"検出されたボックス数: {len(result.boxes)}")
 
                 for i, box in enumerate(result.boxes):
+                    box_id = int(box.id[0].cpu().numpy())
+
                     # バウンディングボックス座標を取得
                     x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().astype(int)
                     confidence = float(box.conf[0].cpu().numpy())
@@ -92,7 +94,7 @@ class YoloModelManager():
 
                     if person_crop.size > 0:
                         bounding_box = np.array([x1, y1, x2, y2])
-                        detections.append((bounding_box, person_crop))
+                        detections.append((bounding_box, person_crop, box_id))
                         self.logger.debug(
                             f"人物 {i+1} の切り抜きサイズ: {person_crop.shape}")
                     else:
@@ -112,12 +114,12 @@ class YoloModelManager():
             self.logger.error(f"人物追跡中にエラーが発生しました: {e}")
             return []
 
-    def extract_person_crop_from_box(self, frame: np.ndarray) -> List[np.ndarray]:
+    def extract_person_crop_from_box(self, frame: np.ndarray) -> List[Tuple[np.ndarray, np.ndarray, int]]:
         """
         フレームから人物の切り抜き画像を抽出する
 
         :param frame: 元フレーム
-        :return: 人物の切り抜き画像のリスト
+        :return: (バウンディングボックス, 人物画像, 人物ID)のタプルのリスト
         :raises ValueError: 無効なボックスまたはフレームの場合
         """
         if frame is None or frame.size == 0:
