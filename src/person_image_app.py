@@ -243,6 +243,19 @@ class PersonImageReIDApp:
 
         self._save_evaluation_results(cmc, mAP)
 
+        self.logger.info("ROC曲線を計算します...")
+
+        fpr, tpr, roc_thresholds, eer, eer_threshold, best_f1, best_f1_threshold = self.post_processing_manager.compute_roc_eer_f1(
+            self.data_manager.query_feats,
+            self.data_manager.gallery_feats,
+            self.data_manager.query_person_ids,
+            self.data_manager.gallery_person_ids
+        )
+
+        self.logger.info(f"ROC曲線 - FPR: {fpr}, TPR: {tpr}, ROC閾値: {roc_thresholds}")
+        self.logger.info(f"EER: {eer}, EER閾値: {eer_threshold}")
+        self.logger.info(f"F1スコア: {best_f1}, F1閾値: {best_f1_threshold}")
+
         self.logger.info("後処理が完了しました")
 
     def run(self) -> None:

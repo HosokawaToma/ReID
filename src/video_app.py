@@ -201,7 +201,7 @@ class VideoReIDApp:
                 f"フレーム {frame_number}: {len(person_detections)}人の人物を検出")
             processed_frame = frame.copy()
 
-            for i, (bounding_box, person_crop) in enumerate(person_detections):
+            for i, (bounding_box, person_crop, _) in enumerate(person_detections):
                 try:
                     self.logger.debug(f"フレーム {frame_number}, 人物 {i+1}: 特徴抽出開始")
 
