@@ -49,6 +49,7 @@ class PersonImageReIDApp:
             data_set_name: データセット名
             reid_backend: 使用するReIDバックエンド ('clip', 'trans_reid', 'la_transformer')
         """
+        self._setup_logging()
         self.data_set_name = data_set_name
         self.reid_backend = reid_backend
         self.input_dir_str = input_dir_str
@@ -150,7 +151,6 @@ class PersonImageReIDApp:
     def _initialize_process(self) -> None:
         """処理の初期化"""
         self.logger.info("処理の初期化を開始します...")
-        self._setup_logging()
         self._set_directories()
         self._validate_directories()
         self._set_components()
