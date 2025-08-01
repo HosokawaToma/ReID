@@ -1,6 +1,7 @@
 """後処理マネージャーモジュール"""
 from dataclasses import dataclass
 from torchreid import metrics
+from post_processing.k_reciprocal_encoding import re_ranking
 import logging
 import torch
 import numpy as np
@@ -10,6 +11,7 @@ from typing import List, Tuple
 @dataclass
 class PostProcessingConfig:
     class EVALUATE:
+        K_RECIPROCAL_RE_RANKING: bool = False
         MAX_RANK: int = 50
         METRIC: str = "cosine"
         USE_METRIC_CUHK03: bool = False
@@ -27,6 +29,7 @@ class PostProcessingManager:
 
     def __init__(
         self,
+        k_reciprocal_re_ranking: bool = POST_PROCESSING_CONFIG.EVALUATE.K_RECIPROCAL_RE_RANKING,
         max_rank: int = POST_PROCESSING_CONFIG.EVALUATE.MAX_RANK,
         metric: str = POST_PROCESSING_CONFIG.EVALUATE.METRIC,
         use_metric_cuhk03: bool = POST_PROCESSING_CONFIG.EVALUATE.USE_METRIC_CUHK03,
@@ -36,6 +39,7 @@ class PostProcessingManager:
         """初期化"""
         print("PostProcessingManager初期化開始...")
         self.logger = logging.getLogger(__name__)
+        self.k_reciprocal_re_ranking = k_reciprocal_re_ranking
         self.max_rank = max_rank
         self.metric = metric
         self.use_metric_cuhk03 = use_metric_cuhk03
@@ -80,6 +84,13 @@ class PostProcessingManager:
         q_camids = np.asarray(query_camera_ids, dtype=np.int64)
         g_camids = np.asarray(gallery_camera_ids, dtype=np.int64)
 
+        if self.k_reciprocal_re_ranking:
+            q_q_dist = metrics.compute_distance_matrix(
+                q, q, metric=self.metric).cpu().numpy()
+            g_g_dist = metrics.compute_distance_matrix(
+                g, g, metric=self.metric).cpu().numpy()
+            dist = re_ranking(dist, q_q_dist, g_g_dist)
+
         cmc, mAP = metrics.evaluate_rank(
             dist,
             q_pids,
@@ -100,26 +111,26 @@ class PostProcessingManager:
         gallery_person_ids: List[int]
     ) -> int:
         """
-        人物IDを割り当てる
+        人物IDを割り当てる（GPUベクトル化処理）
         """
         if query_feat is None or not gallery_feats:
             self.next_person_id += 1
             return self.next_person_id
 
-        best_id = -1
-        best_sim = 0
+        gallery_tensor = torch.stack(
+            [feat.view(-1) for feat in gallery_feats], dim=0)
 
-        for gallery_feat, person_id in zip(gallery_feats, gallery_person_ids):
-            v1 = query_feat.view(-1)
-            v2 = gallery_feat.view(-1)
-            sim = torch.nn.functional.cosine_similarity(
-                v1, v2, dim=0, eps=1e-8)
-            if sim > best_sim and sim > self.similarity_threshold:
-                best_sim = sim
-                best_id = person_id
+        similarities = torch.nn.functional.cosine_similarity(
+            query_feat.unsqueeze(0), gallery_tensor, dim=1, eps=1e-8)
 
-        if best_id == -1:
-            self.next_person_id += 1
-            return self.next_person_id
+        valid_indices = similarities > self.similarity_threshold
 
-        return best_id
+        if valid_indices.any():
+            best_idx = torch.argmax(similarities).item()
+            best_sim = similarities[best_idx].item()
+
+            if best_sim > self.similarity_threshold:
+                return gallery_person_ids[best_idx]
+
+        self.next_person_id += 1
+        return self.next_person_id

@@ -22,6 +22,7 @@ class PersonImageAppConfig:
         output_dir_str: str = "./resources/person_images/output"
 
     class PostProcessing:
+        k_reciprocal_re_ranking: bool = False
         max_rank: int = 50
         metric: str = "cosine"
         use_metric_cuhk03: bool = False
@@ -38,6 +39,7 @@ class PersonImageReIDApp:
         reid_backend: str = PERSON_IMAGE_APP_CONFIG.REID_BACKEND.name,
         input_dir_str: str = PERSON_IMAGE_APP_CONFIG.Directories.input_dir_str,
         output_dir_str: str = PERSON_IMAGE_APP_CONFIG.Directories.output_dir_str,
+        k_reciprocal_re_ranking: bool = PERSON_IMAGE_APP_CONFIG.PostProcessing.k_reciprocal_re_ranking,
         max_rank: int = PERSON_IMAGE_APP_CONFIG.PostProcessing.max_rank,
         metric: str = PERSON_IMAGE_APP_CONFIG.PostProcessing.metric,
         use_metric_cuhk03: bool = PERSON_IMAGE_APP_CONFIG.PostProcessing.use_metric_cuhk03,
@@ -54,6 +56,7 @@ class PersonImageReIDApp:
         self.reid_backend = reid_backend
         self.input_dir_str = input_dir_str
         self.output_dir_str = output_dir_str
+        self.k_reciprocal_re_ranking = k_reciprocal_re_ranking
         self.max_rank = max_rank
         self.metric = metric
         self.use_metric_cuhk03 = use_metric_cuhk03
