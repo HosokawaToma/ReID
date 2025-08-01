@@ -63,7 +63,7 @@ class LA_TransformerConfig:
         SIZE_TEST: Tuple[int, int] = (224, 224)
         PIXEL_MEAN: Tuple[float, float, float] = (0.485, 0.456, 0.406)
         PIXEL_STD: Tuple[float, float, float] = (0.229, 0.224, 0.225)
-
+        INTERPOLATION: int = 3
 CLIP_REID_CONFIG = ClipReIDConfig()
 TRANS_REID_CONFIG = TransReIDConfig()
 LA_TRANSFORMER_CONFIG = LA_TransformerConfig()
@@ -81,6 +81,8 @@ class ReIDModelManager:
         self.backend = backend
         self.model = None
         self.transform = None
+        self.query_transform = None
+        self.gallery_transform = None
         self.device = None
         self.sie_camera = False
         self.sie_view = False
@@ -204,8 +206,23 @@ class ReIDModelManager:
         self.logger.info(
             f"LA-Transformerモデル重み読み込み完了: {LA_TRANSFORMER_CONFIG.MODEL.PATH}")
 
-        self.transform = transforms.Compose([
-            transforms.Resize(LA_TRANSFORMER_CONFIG.INPUT.SIZE_TEST),
+        self.gallery_transform = transforms.Compose([
+            transforms.Resize(
+                LA_TRANSFORMER_CONFIG.INPUT.SIZE_TEST,
+                interpolation=LA_TRANSFORMER_CONFIG.INPUT.INTERPOLATION
+            ),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=LA_TRANSFORMER_CONFIG.INPUT.PIXEL_MEAN,
+                std=LA_TRANSFORMER_CONFIG.INPUT.PIXEL_STD
+            )
+        ])
+        self.query_transform = transforms.Compose([
+            transforms.Resize(
+                LA_TRANSFORMER_CONFIG.INPUT.SIZE_TEST,
+                interpolation=LA_TRANSFORMER_CONFIG.INPUT.INTERPOLATION
+            ),
+            transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(
                 mean=LA_TRANSFORMER_CONFIG.INPUT.PIXEL_MEAN,
@@ -217,13 +234,20 @@ class ReIDModelManager:
 
         self.logger.info("LA-Transformerモデル初期化完了")
 
-    def extract_features(self, image: np.ndarray, camera_id: int = 0, view_id: int = 0) -> torch.Tensor:
+    def extract_features(
+        self,
+        image: np.ndarray,
+        camera_id: int = 0,
+        view_id: int = 0,
+        image_type: str = None
+    ) -> torch.Tensor:
         """
         切り抜かれた人物画像から特徴量を抽出する
 
         :param image_crop: 人物の切り抜き画像 (BGR format)
         :param camera_id: カメラID (デフォルト: 0)
         :param view_id: ビューID (デフォルト: 0)
+        :param image_type: 画像の種類 (None or "gallery" or "query")
         :return: L2正規化された特徴量ベクトル
         :raises Exception: 特徴抽出に失敗した場合
         """
@@ -234,7 +258,12 @@ class ReIDModelManager:
             raise Exception("無効な画像が提供されました")
 
         image_pil = Image.fromarray(image[:, :, ::-1])
-        image_tensor = self.transform(image_pil).unsqueeze(0).to(self.device)
+        if image_type == "gallery":
+            image_tensor = self.gallery_transform(image_pil).unsqueeze(0).to(self.device)
+        elif image_type == "query":
+            image_tensor = self.query_transform(image_pil).unsqueeze(0).to(self.device)
+        else:
+            image_tensor = self.transform(image_pil).unsqueeze(0).to(self.device)
         camera_id_tensor = None
         view_id_tensor = None
 
