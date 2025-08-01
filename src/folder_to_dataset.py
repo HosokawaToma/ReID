@@ -27,8 +27,12 @@ class FolderToDataset:
                 if not image_file.is_file():
                     continue
 
+                output_dir = self.output_path / f"{person_id}"
+                if not output_dir.exists():
+                    output_dir.mkdir(parents=True)
+
                 output_file_name = f"{person_id}_{image_file.name}"
-                output_file_path = self.output_path / output_file_name
+                output_file_path = output_dir / output_file_name
 
                 if output_file_path.exists():
                     continue

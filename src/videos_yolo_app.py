@@ -31,7 +31,10 @@ class VideosYoloApp:
             person_crop_list = self.yolo_model_manager.extract_person_crop_from_box(frame)
             for _, person_crop, track_id in person_crop_list:
                 file_name = f"{video_id}_{i}.jpg"
-                file_path = os.path.join(f"{self.output_dir_str}/{track_id}", file_name)
+                output_dir = os.path.join(self.output_dir_str, f"{track_id}")
+                if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
+                file_path = os.path.join(output_dir, file_name)
                 cv2.imwrite(file_path, person_crop)
                 i += 1
         cap.release()
