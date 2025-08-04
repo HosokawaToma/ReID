@@ -114,7 +114,7 @@ class PostProcessingManager:
         """
         人物IDを割り当てる（GPUベクトル化処理）
         """
-        if query_feat is None or not gallery_feats:
+        if query_feat is None or gallery_feats is None or gallery_feats.numel() == 0:
             self.next_person_id += 1
             return self.next_person_id
 
