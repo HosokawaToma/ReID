@@ -14,11 +14,11 @@ class DataManager:
         self.query_person_ids: List[int] = []
         self.query_camera_ids: List[int] = []
         self.query_view_ids: List[int] = []
-        self.query_feats: List[torch.Tensor] = []
+        self.query_feats: torch.Tensor = None
         self.gallery_person_ids: List[int] = []
         self.gallery_camera_ids: List[int] = []
         self.gallery_view_ids: List[int] = []
-        self.gallery_feats: List[torch.Tensor] = []
+        self.gallery_feats: torch.Tensor = None
 
     def add_gallery(self, person_id: int, camera_id: int, view_id: int, feats: torch.Tensor) -> None:
         """
@@ -33,7 +33,10 @@ class DataManager:
         self.gallery_person_ids.append(person_id)
         self.gallery_camera_ids.append(camera_id)
         self.gallery_view_ids.append(view_id)
-        self.gallery_feats.append(feats)
+        if self.gallery_feats is None:
+            self.gallery_feats = feats
+        else:
+            self.gallery_feats = torch.cat([self.gallery_feats, feats], dim=0)
         self.logger.info(
             f"ギャラリー特徴量を追加しました: person_id={person_id}, camera_id={camera_id}, view_id={view_id}")
 
@@ -50,6 +53,9 @@ class DataManager:
         self.query_person_ids.append(person_id)
         self.query_camera_ids.append(camera_id)
         self.query_view_ids.append(view_id)
-        self.query_feats.append(feats)
+        if self.query_feats is None:
+            self.query_feats = feats
+        else:
+            self.query_feats = torch.cat([self.query_feats, feats], dim=0)
         self.logger.info(
             f"クエリ特徴量を追加しました: person_id={person_id}, camera_id={camera_id}, view_id={view_id}")

@@ -53,8 +53,8 @@ class PostProcessingManager:
 
     def evaluate(
         self,
-        query_feats: List[torch.Tensor],
-        gallery_feats: List[torch.Tensor],
+        query_feats: torch.Tensor,
+        gallery_feats: torch.Tensor,
         query_person_ids: List[int],
         gallery_person_ids: List[int],
         query_camera_ids: List[int],
@@ -74,8 +74,8 @@ class PostProcessingManager:
         Returns:
             Tuple[np.ndarray, float]: CMCスコアとmAPスコア
         """
-        q = torch.stack(query_feats, 0)
-        g = torch.stack(gallery_feats, 0)
+        q = query_feats
+        g = gallery_feats
 
         dist = metrics.compute_distance_matrix(
             q, g, metric=self.metric).cpu().numpy()
@@ -108,7 +108,7 @@ class PostProcessingManager:
     def assign_person_id(
         self,
         query_feat: torch.Tensor,
-        gallery_feats: List[torch.Tensor],
+        gallery_feats: torch.Tensor,
         gallery_person_ids: List[int]
     ) -> int:
         """
@@ -118,11 +118,8 @@ class PostProcessingManager:
             self.next_person_id += 1
             return self.next_person_id
 
-        gallery_tensor = torch.stack(
-            [feat.view(-1) for feat in gallery_feats], dim=0)
-
         similarities = torch.nn.functional.cosine_similarity(
-            query_feat.unsqueeze(0), gallery_tensor, dim=1, eps=1e-8)
+            query_feat, gallery_feats, dim=1, eps=1e-8)
 
         valid_indices = similarities > self.similarity_threshold
 
@@ -138,8 +135,8 @@ class PostProcessingManager:
 
     def compute_roc_eer_f1(
         self,
-        query_feats: List[torch.Tensor],
-        gallery_feats: List[torch.Tensor],
+        query_feats: torch.Tensor,
+        gallery_feats: torch.Tensor,
         query_person_ids: List[int],
         gallery_person_ids: List[int],
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float, float, float, float]:
@@ -159,8 +156,8 @@ class PostProcessingManager:
             best_f1_threshold: threshold achieving best_f1.
         """
         # 1) stack into matrices
-        q = torch.stack(query_feats)         # shape (Nq, D)
-        g = torch.stack(gallery_feats)       # shape (Ng, D)
+        q = query_feats         # shape (Nq, D)
+        g = gallery_feats       # shape (Ng, D)
 
         # 2) compute cosine similarity matrix (since both are L2-normalized)
         #    sims[i,j] = cos(query_i, gallery_j)

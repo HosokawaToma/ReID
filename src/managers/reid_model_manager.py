@@ -200,13 +200,11 @@ class ReIDModelManager:
                 feat = self.model(
                     image_tensor, cam_label=camera_id_tensor, view_label=view_id_tensor)
                 feat = torch.nn.functional.normalize(feat, dim=1, p=2)
-                feat = feat.squeeze(0)
 
             elif self.backend == "trans_reid":
                 feat = self.model(
                     image_tensor, cam_label=camera_id_tensor, view_label=view_id_tensor)
                 feat = torch.nn.functional.normalize(feat, dim=1, p=2)
-                feat = feat.squeeze(0)
 
             else:
                 raise ValueError(f"不明なReIDバックエンドです: {self.backend}")
