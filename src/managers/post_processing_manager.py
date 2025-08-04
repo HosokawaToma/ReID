@@ -30,7 +30,6 @@ class PostProcessingManager:
 
     def __init__(
         self,
-        k_reciprocal_re_ranking: bool = POST_PROCESSING_CONFIG.EVALUATE.K_RECIPROCAL_RE_RANKING,
         max_rank: int = POST_PROCESSING_CONFIG.EVALUATE.MAX_RANK,
         metric: str = POST_PROCESSING_CONFIG.EVALUATE.METRIC,
         use_metric_cuhk03: bool = POST_PROCESSING_CONFIG.EVALUATE.USE_METRIC_CUHK03,
@@ -40,7 +39,6 @@ class PostProcessingManager:
         """初期化"""
         print("PostProcessingManager初期化開始...")
         self.logger = logging.getLogger(__name__)
-        self.k_reciprocal_re_ranking = k_reciprocal_re_ranking
         self.max_rank = max_rank
         self.metric = metric
         self.use_metric_cuhk03 = use_metric_cuhk03
@@ -51,6 +49,15 @@ class PostProcessingManager:
             f"人物ID割り当ての類似度閾値を{self.similarity_threshold}に設定しました")
         print("PostProcessingManager初期化完了")
 
+    def k_reciprocal_re_ranking(self, query_feats: torch.Tensor, gallery_feats: torch.Tensor) -> np.ndarray:
+        q_g_dist = metrics.compute_distance_matrix(
+            query_feats, gallery_feats, metric=self.metric).cpu().numpy()
+        q_q_dist = metrics.compute_distance_matrix(
+            query_feats, query_feats, metric=self.metric).cpu().numpy()
+        g_g_dist = metrics.compute_distance_matrix(
+            gallery_feats, gallery_feats, metric=self.metric).cpu().numpy()
+        return re_ranking(q_g_dist, q_q_dist, g_g_dist)
+
     def evaluate(
         self,
         query_feats: torch.Tensor,
@@ -59,6 +66,7 @@ class PostProcessingManager:
         gallery_person_ids: List[int],
         query_camera_ids: List[int],
         gallery_camera_ids: List[int],
+        dist: np.ndarray = None
     ) -> Tuple[np.ndarray, float]:
         """
         特徴量の評価を実行する
@@ -74,23 +82,14 @@ class PostProcessingManager:
         Returns:
             Tuple[np.ndarray, float]: CMCスコアとmAPスコア
         """
-        q = query_feats
-        g = gallery_feats
-
-        dist = metrics.compute_distance_matrix(
-            q, g, metric=self.metric).cpu().numpy()
+        if dist is None:
+            dist = metrics.compute_distance_matrix(
+                query_feats, gallery_feats, metric=self.metric).cpu().numpy()
 
         q_pids = np.asarray(query_person_ids, dtype=np.int64)
         g_pids = np.asarray(gallery_person_ids, dtype=np.int64)
         q_camids = np.asarray(query_camera_ids, dtype=np.int64)
         g_camids = np.asarray(gallery_camera_ids, dtype=np.int64)
-
-        if self.k_reciprocal_re_ranking:
-            q_q_dist = metrics.compute_distance_matrix(
-                q, q, metric=self.metric).cpu().numpy()
-            g_g_dist = metrics.compute_distance_matrix(
-                g, g, metric=self.metric).cpu().numpy()
-            dist = re_ranking(dist, q_q_dist, g_g_dist)
 
         cmc, mAP = metrics.evaluate_rank(
             dist,

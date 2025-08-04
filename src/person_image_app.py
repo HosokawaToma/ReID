@@ -12,25 +12,22 @@ import numpy as np
 
 @dataclass
 class PersonImageAppConfig:
+    input_dir_str: str = "./resources/person_images/input"
+    output_dir_str: str = "./resources/person_images/output"
+    k_reciprocal_re_ranking: bool = False
+    clahe: bool = True
+
     class REID_BACKEND:
         name: str = "clip"
 
     class DATA_SET:
         name: str = "market1501"
 
-    class Directories:
-        input_dir_str: str = "./resources/person_images/input"
-        output_dir_str: str = "./resources/person_images/output"
-
     class PostProcessing:
-        k_reciprocal_re_ranking: bool = False
         max_rank: int = 50
         metric: str = "cosine"
         use_metric_cuhk03: bool = False
         use_cython: bool = False
-
-    class PreProcessing:
-        clahe: bool = True
 
 PERSON_IMAGE_APP_CONFIG = PersonImageAppConfig()
 
@@ -39,16 +36,16 @@ class PersonImageReIDApp:
 
     def __init__(
         self,
+        input_dir_str: str = PERSON_IMAGE_APP_CONFIG.input_dir_str,
+        output_dir_str: str = PERSON_IMAGE_APP_CONFIG.output_dir_str,
+        k_reciprocal_re_ranking: bool = PERSON_IMAGE_APP_CONFIG.k_reciprocal_re_ranking,
+        clahe: bool = PERSON_IMAGE_APP_CONFIG.clahe,
         data_set_name: str = PERSON_IMAGE_APP_CONFIG.DATA_SET.name,
         reid_backend: str = PERSON_IMAGE_APP_CONFIG.REID_BACKEND.name,
-        input_dir_str: str = PERSON_IMAGE_APP_CONFIG.Directories.input_dir_str,
-        output_dir_str: str = PERSON_IMAGE_APP_CONFIG.Directories.output_dir_str,
-        k_reciprocal_re_ranking: bool = PERSON_IMAGE_APP_CONFIG.PostProcessing.k_reciprocal_re_ranking,
         max_rank: int = PERSON_IMAGE_APP_CONFIG.PostProcessing.max_rank,
         metric: str = PERSON_IMAGE_APP_CONFIG.PostProcessing.metric,
         use_metric_cuhk03: bool = PERSON_IMAGE_APP_CONFIG.PostProcessing.use_metric_cuhk03,
         use_cython: bool = PERSON_IMAGE_APP_CONFIG.PostProcessing.use_cython,
-        clahe: bool = PERSON_IMAGE_APP_CONFIG.PreProcessing.clahe
     ) -> None:
         """初期化
 
@@ -61,12 +58,13 @@ class PersonImageReIDApp:
         self.reid_backend = reid_backend
         self.input_dir_str = input_dir_str
         self.output_dir_str = output_dir_str
-        self.k_reciprocal_re_ranking = k_reciprocal_re_ranking
         self.max_rank = max_rank
         self.metric = metric
         self.use_metric_cuhk03 = use_metric_cuhk03
         self.use_cython = use_cython
         self.clahe = clahe
+        self.k_reciprocal_re_ranking = k_reciprocal_re_ranking
+
     def _setup_logging(self) -> None:
         """ログ設定の初期化"""
         logging.basicConfig(
@@ -239,13 +237,22 @@ class PersonImageReIDApp:
 
         self.logger.info("後処理を開始します...")
         self.logger.info("評価を開始します...")
+
+        dist = None
+        if self.k_reciprocal_re_ranking:
+            dist = self.post_processing_manager.k_reciprocal_re_ranking(
+                self.data_manager.query_feats,
+                self.data_manager.gallery_feats
+            )
+
         cmc, mAP = self.post_processing_manager.evaluate(
             self.data_manager.query_feats,
             self.data_manager.gallery_feats,
             self.data_manager.query_person_ids,
             self.data_manager.gallery_person_ids,
             self.data_manager.query_camera_ids,
-            self.data_manager.gallery_camera_ids
+            self.data_manager.gallery_camera_ids,
+            dist=dist
         )
 
         self.logger.info("評価が完了しました")
