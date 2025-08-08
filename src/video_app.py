@@ -10,6 +10,7 @@ from managers.data_manager import DataManager
 from managers.yolo_model_manager import YoloModelManager
 from managers.reid_model_manager import ReIDModelManager
 from managers.post_processing_manager import PostProcessingManager
+from managers.pre_processing_manager import PreProcessingManager
 
 
 @dataclass
@@ -20,6 +21,10 @@ class VideoAppConfig:
     class Directories:
         input_dir_str: str = "./resources/videos/input"
         output_dir_str: str = "./resources/videos/output"
+
+    class PreProcessing:
+        clahe: bool = False
+        retinex: bool = False
 
 
 VIDEO_APP_CONFIG = VideoAppConfig()
@@ -32,7 +37,9 @@ class VideoReIDApp:
         self,
         reid_backend: str = VIDEO_APP_CONFIG.REID_BACKEND.name,
         input_dir_str: str = VIDEO_APP_CONFIG.Directories.input_dir_str,
-        output_dir_str: str = VIDEO_APP_CONFIG.Directories.output_dir_str
+        output_dir_str: str = VIDEO_APP_CONFIG.Directories.output_dir_str,
+        clahe: bool = VIDEO_APP_CONFIG.PreProcessing.clahe,
+        retinex: bool = VIDEO_APP_CONFIG.PreProcessing.retinex
     ):
         """初期化
 
@@ -43,7 +50,8 @@ class VideoReIDApp:
         self.reid_backend = reid_backend
         self.input_dir_str = input_dir_str
         self.output_dir_str = output_dir_str
-
+        self.clahe = clahe
+        self.retinex = retinex
     def _setup_logging(self) -> None:
         """ログ設定の初期化"""
         logging.basicConfig(
@@ -81,6 +89,8 @@ class VideoReIDApp:
         self.yolo_manager = YoloModelManager()
 
         self.reid_manager = ReIDModelManager(backend=self.reid_backend)
+
+        self.pre_processing_manager = PreProcessingManager()
 
         self.post_processing_manager = PostProcessingManager()
 
@@ -204,6 +214,11 @@ class VideoReIDApp:
             for i, (bounding_box, person_crop, _) in enumerate(person_detections):
                 try:
                     self.logger.debug(f"フレーム {frame_number}, 人物 {i+1}: 特徴抽出開始")
+
+                    if self.clahe:
+                        person_crop = self.pre_processing_manager.clahe(person_crop)
+                    if self.retinex:
+                        person_crop = self.pre_processing_manager.retinex(person_crop)
 
                     feat = self.reid_manager.extract_features(
                         person_crop, camera_id=video_id)

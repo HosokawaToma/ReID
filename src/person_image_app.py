@@ -15,8 +15,8 @@ class PersonImageAppConfig:
     input_dir_str: str = "./resources/person_images/input"
     output_dir_str: str = "./resources/person_images/output"
     k_reciprocal_re_ranking: bool = False
-    clahe: bool = True
-
+    clahe: bool = False
+    retinex: bool = False
     class REID_BACKEND:
         name: str = "clip"
 
@@ -40,6 +40,7 @@ class PersonImageReIDApp:
         output_dir_str: str = PERSON_IMAGE_APP_CONFIG.output_dir_str,
         k_reciprocal_re_ranking: bool = PERSON_IMAGE_APP_CONFIG.k_reciprocal_re_ranking,
         clahe: bool = PERSON_IMAGE_APP_CONFIG.clahe,
+        retinex: bool = PERSON_IMAGE_APP_CONFIG.retinex,
         data_set_name: str = PERSON_IMAGE_APP_CONFIG.DATA_SET.name,
         reid_backend: str = PERSON_IMAGE_APP_CONFIG.REID_BACKEND.name,
         max_rank: int = PERSON_IMAGE_APP_CONFIG.PostProcessing.max_rank,
@@ -64,7 +65,7 @@ class PersonImageReIDApp:
         self.use_cython = use_cython
         self.clahe = clahe
         self.k_reciprocal_re_ranking = k_reciprocal_re_ranking
-
+        self.retinex = retinex
     def _setup_logging(self) -> None:
         """ログ設定の初期化"""
         logging.basicConfig(
@@ -198,6 +199,8 @@ class PersonImageReIDApp:
                     continue
                 if self.clahe:
                     image = self.pre_processing_manager.clahe(image)
+                if self.retinex:
+                    image = self.pre_processing_manager.retinex(image)
                 features = self.reid_model_manager.extract_features(
                     image, camera_id, view_id)
                 self.data_manager.add_gallery(
