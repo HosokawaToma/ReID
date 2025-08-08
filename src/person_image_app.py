@@ -1,5 +1,7 @@
 """複数人物画像直接処理アプリケーション"""
 from dataclasses import dataclass
+
+import cv2
 from managers.post_processing_manager import PostProcessingManager
 from managers.reid_model_manager import ReIDModelManager
 from managers.data_set_manager import DataSetManager
@@ -199,8 +201,11 @@ class PersonImageReIDApp:
                     continue
                 if self.clahe:
                     image = self.pre_processing_manager.clahe(image)
+                    cv2.imwrite(self.output_dir_path / f"{person_id}_{camera_id}_{view_id}", image)
                 if self.retinex:
                     image = self.pre_processing_manager.retinex(image)
+                    cv2.imwrite(self.output_dir_path /
+                                f"{person_id}_{camera_id}_{view_id}", image)
                 features = self.reid_model_manager.extract_features(
                     image, camera_id, view_id)
                 self.data_manager.add_gallery(
