@@ -293,4 +293,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import cProfile
+    import pstats
+    with cProfile.Profile() as pr:
+        main()
+    stats = pstats.Stats(pr)
+    stats.sort_stats("cumtime").print_stats(30)
