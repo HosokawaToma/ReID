@@ -235,7 +235,7 @@ class PersonImageReIDApp:
         self.logger.info(f"Query画像の処理が完了しました: {query_count}件")
         self.logger.info("データセットから特徴量の抽出が完了しました")
 
-        if not self.data_manager.query_feats or not self.data_manager.gallery_feats:
+        if self.data_manager.query_feats is None or self.data_manager.gallery_feats is None:
             raise Exception("特徴量が抽出されていません。")
 
         self.logger.info("後処理を開始します...")
