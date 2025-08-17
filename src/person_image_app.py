@@ -201,11 +201,12 @@ class PersonImageReIDApp:
                     continue
                 if self.clahe:
                     image = self.pre_processing_manager.clahe(image)
-                    cv2.imwrite(self.output_dir_path / f"{person_id}_{camera_id}_{view_id}", image)
+                    file_path = self.output_dir_path / f"{person_id}_{camera_id}_{view_id}.jpg"
+                    cv2.imwrite(str(file_path), image)
                 if self.retinex:
                     image = self.pre_processing_manager.retinex(image)
-                    cv2.imwrite(self.output_dir_path /
-                                f"{person_id}_{camera_id}_{view_id}", image)
+                    file_path = self.output_dir_path / f"{person_id}_{camera_id}_{view_id}.jpg"
+                    cv2.imwrite(str(file_path), image)
                 features = self.reid_model_manager.extract_features(
                     image, camera_id, view_id)
                 self.data_manager.add_gallery(
@@ -228,6 +229,12 @@ class PersonImageReIDApp:
                     continue
                 if self.clahe:
                     image = self.pre_processing_manager.clahe(image)
+                    file_path = self.output_dir_path / f"{person_id}_{camera_id}_{view_id}.jpg"
+                    cv2.imwrite(str(file_path), image)
+                if self.retinex:
+                    image = self.pre_processing_manager.retinex(image)
+                    file_path = self.output_dir_path / f"{person_id}_{camera_id}_{view_id}.jpg"
+                    cv2.imwrite(str(file_path), image)
                 features = self.reid_model_manager.extract_features(
                     image, camera_id, view_id,)
                 self.data_manager.add_query(
