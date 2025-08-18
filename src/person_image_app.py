@@ -1,7 +1,6 @@
 """複数人物画像直接処理アプリケーション"""
 from dataclasses import dataclass
 
-import cv2
 from managers.post_processing_manager import PostProcessingManager
 from managers.reid_model_manager import ReIDModelManager
 from managers.data_set_manager import DataSetManager
