@@ -14,16 +14,7 @@ from processors.post.compute_roc_eer_f1 import ComputeRocEerF1PostProcessor
 class Config:
     class Application:
         device: str = "cuda" if torch.cuda.is_available() else "cpu"
-        clahe: bool = False
-        retinex: bool = False
-
-    class Directory:
-        class DataSet:
-            use_data_set_name: str = "market1501"
-
-    class DataLoad:
-        class Market1501:
-            use_data_set_name: str = "market1501"
+        use_data_set_name: str = "market1501"
 
     class PostProcessing:
         class Evaluation:
@@ -40,11 +31,11 @@ class PersonImageReIDApp:
     def __init__(self):
         self.logger = LoggerProcessor().setup_logging()
         self.data_set_processor = DataSetDirectoryProcessor(
-            use_data_set_name=CONFIG.Directory.DataSet.use_data_set_name)
+            use_data_set_name=CONFIG.Application.use_data_set_name)
         self.data_set_processor.validate_directories()
         self.data_set_processor.create_output_directory()
         self.market1501_data_load_processor = Market1501DataLoadProcessor(
-            use_data_set_name=CONFIG.DataLoad.Market1501.use_data_set_name)
+            use_data_set_name=CONFIG.Application.use_data_set_name)
         self.clahe_processor = ClahePreProcessor(device=CONFIG.Application.device)
         self.retinex_processor = RetinexPreProcessor(device=CONFIG.Application.device)
         self.clip_reid_processor = ClipReIDProcessor()
