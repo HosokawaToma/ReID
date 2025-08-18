@@ -37,8 +37,7 @@ resources/
 
 # Data files
 datasets/
-!./src/reid_models/clip_reid/datasets/
-!./src/reid_models/trans_reid/datasets/
+!/src/library/reid_models/clip_reid/datasets/
 
 # Model checkpoints
 checkpoints/
