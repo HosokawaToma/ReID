@@ -3,8 +3,6 @@ import torch
 from dataclasses import dataclass
 from processors.logger import LoggerProcessor
 from processors.directory.data_set import DataSetDirectoryProcessor
-from processors.pre.clahe import ClahePreProcessor
-from processors.pre.retinex import RetinexPreProcessor
 from processors.reid.clip import ClipReIDProcessor
 from processors.post.evaluate_post import EvaluatePostProcessor
 from processors.data_load.market1501 import Market1501DataLoadProcessor
@@ -36,8 +34,6 @@ class PersonImageReIDApp:
         self.data_set_processor.create_output_directory()
         self.market1501_data_load_processor = Market1501DataLoadProcessor(
             use_data_set_name=CONFIG.Application.use_data_set_name)
-        self.clahe_processor = ClahePreProcessor(device=CONFIG.Application.device)
-        self.retinex_processor = RetinexPreProcessor(device=CONFIG.Application.device)
         self.clip_reid_processor = ClipReIDProcessor()
         self.evaluate_post_processor = EvaluatePostProcessor(
             max_rank=CONFIG.PostProcessing.Evaluation.max_rank,
