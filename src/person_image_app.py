@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 
 from managers.post_processing_manager import PostProcessingManager
-from reid_models.clip_reid_processor import ClipReIDProcessor
+from processors.reid.clip_reid_processor import ClipReIDProcessor
 from managers.data_set_manager import DataSetManager
 from managers.data_manager import DataManager
 from managers.pre_processing_manager import PreProcessingManager
@@ -76,16 +76,6 @@ class PersonImageReIDApp:
         )
         self.logger = logging.getLogger(__name__)
 
-    def _set_directories(self) -> None:
-        """ディレクトリの設定"""
-        self.logger.info("ディレクトリの設定を開始します...")
-        self.input_dir_path = Path(self.input_dir_str)
-        self.output_dir_path = Path(self.output_dir_str)
-        self.data_set_dir_path = self.input_dir_path / self.data_set_name
-        self.data_set_query_dir_path = self.data_set_dir_path / "query"
-        self.data_set_gallery_dir_path = self.data_set_dir_path / "gallery"
-        self.logger.info("ディレクトリの設定が完了しました")
-
     def _set_components(self) -> None:
         """コンポーネントの初期化"""
         self.logger.info("コンポーネントの初期化を開始します...")
@@ -108,52 +98,6 @@ class PersonImageReIDApp:
             device=self.device
         )
         self.logger.info("全てのコンポーネントの初期化が完了しました")
-
-
-    def _validate_directories(self) -> None:
-        """ディレクトリの存在確認と作成"""
-        self.logger.info("ディレクトリの存在確認と作成を開始します...")
-
-        # 入力ディレクトリの確認
-        if not self.input_dir_path.exists():
-            raise FileNotFoundError(f"入力ディレクトリが存在しません: {self.input_dir_path}")
-
-        if not self.input_dir_path.is_dir():
-            raise NotADirectoryError(
-                f"指定されたパスはディレクトリではありません: {self.input_dir_path}")
-
-        # データセットディレクトリの確認
-        if not self.data_set_dir_path.exists():
-            raise FileNotFoundError(
-                f"データセットディレクトリが存在しません: {self.data_set_dir_path}")
-
-        if not self.data_set_dir_path.is_dir():
-            raise NotADirectoryError(
-                f"指定されたパスはディレクトリではありません: {self.data_set_dir_path}")
-
-        # 入力のqueryディレクトリの確認
-        if not self.data_set_query_dir_path.exists():
-            raise FileNotFoundError(
-                f"queryディレクトリが存在しません: {self.data_set_query_dir_path}")
-
-        if not self.data_set_query_dir_path.is_dir():
-            raise NotADirectoryError(
-                f"指定されたパスはディレクトリではありません: {self.data_set_query_dir_path}")
-
-        # 入力のgalleryディレクトリの確認
-        if not self.data_set_gallery_dir_path.exists():
-            raise FileNotFoundError(
-                f"galleryディレクトリが存在しません: {self.data_set_gallery_dir_path}")
-
-        if not self.data_set_gallery_dir_path.is_dir():
-            raise NotADirectoryError(
-                f"指定されたパスはディレクトリではありません: {self.data_set_gallery_dir_path}")
-
-        # 出力ディレクトリの作成
-        self.output_dir_path.mkdir(parents=True, exist_ok=True)
-        self.logger.info(f"出力ディレクトリを準備しました: {self.output_dir_path}")
-
-        self.logger.info("ディレクトリの存在確認と作成が完了しました")
 
     def _save_evaluation_results(self, cmc: np.ndarray, mAP: float) -> None:
         """評価結果をファイルに保存"""
