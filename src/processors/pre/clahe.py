@@ -4,7 +4,7 @@ import cv2
 from library.pre_processing.clahe import clahe_gpu
 
 class ClahePreProcessor:
-    def __init__(self, device: str = "cpu"):
+    def __init__(self, device):
         self.device = device
 
     def _np_image_to_tensor(self, image: np.ndarray) -> torch.Tensor:

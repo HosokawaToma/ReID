@@ -5,15 +5,21 @@ from sklearn.metrics import roc_curve, precision_recall_curve
 
 class ComputeRocEerF1PostProcessor:
     def __init__(self):
-        pass
+        self.fpr = None
+        self.tpr = None
+        self.roc_thresholds = None
+        self.eer = None
+        self.eer_threshold = None
+        self.best_f1 = None
+        self.best_f1_threshold = None
 
-    def compute_roc_eer_f1(
+    def compute(
         self,
         query_feats: torch.Tensor,
         gallery_feats: torch.Tensor,
         query_person_ids: List[int],
         gallery_person_ids: List[int]
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float, float, float, float]:
+    ) -> None:
         # 1) stack into matrices
         q = query_feats         # shape (Nq, D)
         g = gallery_feats       # shape (Ng, D)
@@ -54,4 +60,31 @@ class ComputeRocEerF1PostProcessor:
         best_f1 = f1_scores[idx_best]
         best_f1_threshold = pr_thresholds[idx_best]
 
-        return fpr, tpr, roc_thresholds, eer, eer_threshold, best_f1, best_f1_threshold
+        self.fpr = fpr
+        self.tpr = tpr
+        self.roc_thresholds = roc_thresholds
+        self.eer = eer
+        self.eer_threshold = eer_threshold
+        self.best_f1 = best_f1
+        self.best_f1_threshold = best_f1_threshold
+
+    def get_fpr(self) -> np.ndarray:
+        return self.fpr
+
+    def get_tpr(self) -> np.ndarray:
+        return self.tpr
+
+    def get_roc_thresholds(self) -> np.ndarray:
+        return self.roc_thresholds
+
+    def get_eer(self) -> float:
+        return self.eer
+
+    def get_eer_threshold(self) -> float:
+        return self.eer_threshold
+
+    def get_best_f1(self) -> float:
+        return self.best_f1
+
+    def get_best_f1_threshold(self) -> float:
+        return self.best_f1_threshold

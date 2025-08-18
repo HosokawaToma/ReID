@@ -42,10 +42,4 @@ class DataSetDirectoryProcessor:
         if not self.data_set_query_dir_path.is_dir():
             return False
 
-        if not self.output_dir_path.exists():
-            return False
-
-        if not self.output_dir_path.is_dir():
-            return False
-
         return True

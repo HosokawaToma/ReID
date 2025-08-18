@@ -20,6 +20,8 @@ class EvaluatePostProcessor:
         self.use_cython = use_cython
         self.k_reciprocal_re_ranking = k_reciprocal_re_ranking
         self.logger = logging.getLogger(__name__)
+        self.cmc = None
+        self.mAP = None
 
     def evaluate(
         self,
@@ -29,7 +31,7 @@ class EvaluatePostProcessor:
         gallery_person_ids: List[int],
         query_camera_ids: List[int],
         gallery_camera_ids: List[int],
-    ) -> Tuple[np.ndarray, float]:
+    ) -> None:
         self.logger.info("ReIDの精度の評価を開始します")
 
         if self.k_reciprocal_re_ranking:
@@ -57,7 +59,14 @@ class EvaluatePostProcessor:
 
         self.logger.info("ReIDの精度の評価が完了しました")
 
-        return cmc, mAP
+        self.cmc = cmc
+        self.mAP = mAP
+
+    def get_cmc(self) -> np.ndarray:
+        return self.cmc
+
+    def get_mAP(self) -> float:
+        return self.mAP
 
     def _k_reciprocal_re_ranking(
         self,

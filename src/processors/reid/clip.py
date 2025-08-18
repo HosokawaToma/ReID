@@ -63,7 +63,7 @@ class ClipReIDProcessor:
             )
         ])
 
-    def extract_features(
+    def extract_feat(
         self,
         image: np.ndarray,
         camera_id: int = 0,
