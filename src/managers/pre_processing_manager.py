@@ -34,6 +34,6 @@ class PreProcessingManager:
     def retinex(self, image: np.ndarray) -> np.ndarray:
         image_tensor = self._np_image_to_tensor(image)
         image_tensor.to(self.device)
-        retinex_image_tensor = ssr_gpu(image_tensor)
+        retinex_image_tensor = ssr_gpu(image_tensor, 100)
         retinex_image = self._tensor_image_to_np(retinex_image_tensor)
         return retinex_image
