@@ -163,7 +163,7 @@ class ReIDModelManager:
 
     def extract_features(
         self,
-        image: np.ndarray,
+        image: torch.Tensor,
         camera_id: int = 0,
         view_id: int = 0,
     ) -> torch.Tensor:
@@ -181,9 +181,7 @@ class ReIDModelManager:
 
         if image is None or image.size == 0:
             raise Exception("無効な画像が提供されました")
-
-        image_pil = Image.fromarray(image[:, :, ::-1])
-        image_tensor = self.transform(image_pil).unsqueeze(0).to(self.device)
+        image = self.transform(image)
         camera_id_tensor = None
         view_id_tensor = None
 
@@ -198,7 +196,7 @@ class ReIDModelManager:
         with torch.no_grad():
             if self.backend == "clip":
                 feat = self.model(
-                    image_tensor, cam_label=camera_id_tensor, view_label=view_id_tensor)
+                    image, cam_label=camera_id_tensor, view_label=view_id_tensor)
                 feat = torch.nn.functional.normalize(feat, dim=1, p=2)
 
             elif self.backend == "trans_reid":

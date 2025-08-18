@@ -10,7 +10,7 @@ from managers.pre_processing_manager import PreProcessingManager
 from pathlib import Path
 import logging
 import numpy as np
-
+import torch
 
 @dataclass
 class PersonImageAppConfig:
@@ -68,6 +68,7 @@ class PersonImageReIDApp:
         self.clahe = clahe
         self.k_reciprocal_re_ranking = k_reciprocal_re_ranking
         self.retinex = retinex
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     def _setup_logging(self) -> None:
         """ログ設定の初期化"""
         logging.basicConfig(
@@ -223,20 +224,22 @@ class PersonImageReIDApp:
             if not file_path.is_file():
                 continue
             try:
-                person_id, camera_id, view_id, image = self.data_set_manager.load_image(
+                person_id, camera_id, view_id, image_np = self.data_set_manager.load_image(
                     file_path)
+                image = self.pre_processing_manager.np_image_to_tensor(image_np)
+                image.to(self.device)
                 if person_id == -1:
                     continue
                 if self.clahe:
                     image = self.pre_processing_manager.clahe(image)
                     file_path = self.output_dir_path / f"{person_id}_{camera_id}_{view_id}.jpg"
-                    cv2.imwrite(str(file_path), image)
+                    self.pre_processing_manager.tensor_image_output(image, str(file_path))
                 if self.retinex:
                     image = self.pre_processing_manager.retinex(image)
                     file_path = self.output_dir_path / f"{person_id}_{camera_id}_{view_id}.jpg"
-                    cv2.imwrite(str(file_path), image)
+                    self.pre_processing_manager.tensor_image_output(image, str(file_path))
                 features = self.reid_model_manager.extract_features(
-                    image, camera_id, view_id,)
+                    image, camera_id, view_id)
                 self.data_manager.add_query(
                     person_id, camera_id, view_id, features)
                 query_count += 1
