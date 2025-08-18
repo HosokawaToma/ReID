@@ -201,7 +201,7 @@ class VideoReIDApp:
             (処理済みフレーム, 検出された人物IDのリスト)
         """
         try:
-            person_detections = self.yolo_manager._track_persons(frame)
+            person_detections = self.yolo_manager.extract_person_crop_from_box(frame)
 
             if not person_detections:
                 self.logger.debug(f"フレーム {frame_number}: 人物が検出されませんでした")
@@ -211,17 +211,17 @@ class VideoReIDApp:
                 f"フレーム {frame_number}: {len(person_detections)}人の人物を検出")
             processed_frame = frame.copy()
 
-            for i, (bounding_box, person_crop, _) in enumerate(person_detections):
+            for i, person_detection in enumerate(person_detections):
                 try:
                     self.logger.debug(f"フレーム {frame_number}, 人物 {i+1}: 特徴抽出開始")
 
                     if self.clahe:
-                        person_crop = self.pre_processing_manager.clahe(person_crop)
+                        person_detection.person_crop = self.pre_processing_manager.clahe(person_detection.person_crop)
                     if self.retinex:
-                        person_crop = self.pre_processing_manager.retinex(person_crop)
+                        person_detection.person_crop = self.pre_processing_manager.retinex(person_detection.person_crop)
 
                     feat = self.reid_manager.extract_features(
-                        person_crop, camera_id=video_id)
+                        person_detection.person_crop, camera_id=video_id)
 
                     person_id = self.post_processing_manager.assign_person_id(
                         feat, self.data_manager.gallery_feats, self.data_manager.gallery_person_ids)
@@ -230,7 +230,7 @@ class VideoReIDApp:
                         f"フレーム {frame_number}, 人物 {i+1}: ID {person_id} を割り当て")
 
                     processed_frame = self._draw_detection(
-                        processed_frame, bounding_box, person_id)
+                        processed_frame, person_detection.bounding_box, person_id)
                     self.data_manager.add_gallery(person_id, video_id, 0, feat)
 
                 except Exception as e:

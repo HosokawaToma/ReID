@@ -6,7 +6,7 @@ import logging
 
 import numpy as np
 from ultralytics import YOLO
-
+from dto.person_detections import PersonDetections
 
 @dataclass
 class YoloConfig:
@@ -15,9 +15,7 @@ class YoloConfig:
         confidence_threshold: float = 0.5
         person_class_id: int = 0
 
-
 YOLO_CONFIG = YoloConfig()
-
 
 class YoloModelManager():
     """YOLOモデルの管理と人物検出・追跡を行うクラス"""
@@ -40,7 +38,7 @@ class YoloModelManager():
             self.logger.error(f"YOLOモデルの初期化に失敗しました: {e}")
             raise Exception(f"YOLOモデルの初期化に失敗しました: {e}")
 
-    def _track_persons(self, frame: np.ndarray) -> List[Tuple[np.ndarray, np.ndarray, int]]:
+    def extract_person_crop_from_box(self, frame: np.ndarray) -> List[PersonDetections]:
         """
         フレーム内の人物を検出・追跡する
 
@@ -89,8 +87,7 @@ class YoloModelManager():
                     person_crop = frame[y1:y2, x1:x2]
 
                     if person_crop.size > 0:
-                        bounding_box = np.array([x1, y1, x2, y2])
-                        detections.append((bounding_box, person_crop, box_id))
+                        detections.append(PersonDetections(np.array([x1, y1, x2, y2]), person_crop, box_id))
                         self.logger.debug(
                             f"人物 {i+1} の切り抜きサイズ: {person_crop.shape}")
                     else:
@@ -108,22 +105,3 @@ class YoloModelManager():
         except Exception as e:
             self.logger.error(f"人物追跡中にエラーが発生しました: {e}")
             return []
-
-    def extract_person_crop_from_box(self, frame: np.ndarray) -> List[Tuple[np.ndarray, np.ndarray, int]]:
-        """
-        フレームから人物の切り抜き画像を抽出する
-
-        :param frame: 元フレーム
-        :return: (バウンディングボックス, 人物画像, 人物ID)のタプルのリスト
-        :raises ValueError: 無効なボックスまたはフレームの場合
-        """
-        if frame is None or frame.size == 0:
-            raise ValueError("無効なフレームです")
-
-        try:
-            detections = self._track_persons(frame)
-            return detections
-
-        except Exception as e:
-            self.logger.error(f"人物切り抜き処理エラー: {e}")
-            raise ValueError(f"人物の切り抜きに失敗しました: {e}")
