@@ -9,13 +9,13 @@ DATA_SET_DIR_STR = "resources/data_sets"
 
 class Market1501DataLoadProcessor:
     def __init__(self, use_data_set_name: str):
-        self.market1501_dir_path = Path(DATA_SET_DIR_STR / use_data_set_name)
+        self.market1501_dir_path = Path(DATA_SET_DIR_STR) / use_data_set_name
         self.gallery_dir_path = Path(self.market1501_dir_path / "gallery")
         self.query_dir_path = Path(self.market1501_dir_path / "query")
         self.gallery_features = PersonDataSetFeatures(
-            persons_id=[], cameras_id=[], views_id=[])
+            persons_id=[], cameras_id=[], views_id=[], features=torch.tensor([]))
         self.query_features = PersonDataSetFeatures(
-            persons_id=[], cameras_id=[], views_id=[])
+            persons_id=[], cameras_id=[], views_id=[], features=torch.tensor([]))
 
     def load_image(self, file_path: Path) -> tuple[int, int, int, np.ndarray]:
         image = cv2.imread(str(file_path))
