@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from pre_processing.clahe import clahe_gpu
-from pre_processing.retinex import msrcr_gpu
+from pre_processing.retinex import stable_retinex_gpu
 import cv2
 
 class PreProcessingManager:
@@ -34,6 +34,6 @@ class PreProcessingManager:
     def retinex(self, image: np.ndarray) -> np.ndarray:
         image_tensor = self._np_image_to_tensor(image)
         image_tensor.to(self.device)
-        retinex_image_tensor = msrcr_gpu(image_tensor, [15, 80, 200])
+        retinex_image_tensor = stable_retinex_gpu(image_tensor, [15, 80, 200])
         retinex_image = self._tensor_image_to_np(retinex_image_tensor)
         return retinex_image

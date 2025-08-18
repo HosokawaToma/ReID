@@ -1,7 +1,9 @@
 import torch
 import kornia
+import cv2
+import numpy as np
 
-# 以前修正したSSR関数 (これは変更なし)
+# 以前修正したSSRとMSR関数 (これらは変更なしで再利用)
 
 
 def ssr_gpu(image_tensor: torch.Tensor, sigma: float) -> torch.Tensor:
@@ -15,77 +17,70 @@ def ssr_gpu(image_tensor: torch.Tensor, sigma: float) -> torch.Tensor:
     log_r = log_i - log_l
     return log_r
 
-# MSR関数 (これも変更なし)
-
 
 def msr_gpu(image_tensor: torch.Tensor, sigmas: list[float]) -> torch.Tensor:
     ssr_results = [ssr_gpu(image_tensor, sigma) for sigma in sigmas]
     msr_result = torch.stack(ssr_results, dim=0).mean(dim=0)
     return msr_result
 
-# ★★★ 新しいMSRCR関数 ★★★
+# ★★★ 新しい安定版Retinex関数 ★★★
 
 
-def msrcr_gpu(image_tensor: torch.Tensor, sigmas: list[float]) -> torch.Tensor:
+def stable_retinex_gpu(image_tensor: torch.Tensor, sigmas: list[float]) -> torch.Tensor:
     """
-    色回復付きマルチスケールレティネックス (MSRCR) をGPUで計算します。
-    入力は必ずRGB形式のテンソルである必要があります。
+    HSV色空間のVチャンネルにのみMSRを適用し、色かぶりを防ぐ安定版Retinex。
+    入力はRGBテンソルを想定。
     """
-    # まず、MSRを計算します
-    msr_log_r = msr_gpu(image_tensor, sigmas)
-
-    # --- ここからが色回復処理 ---
     epsilon = 1e-6
-    # 元画像の各チャンネルの合計を計算
-    intensity = image_tensor.sum(dim=1, keepdim=True)
 
-    # 各色チャンネルの割合を計算
-    # 元画像 I_k / (Σ I_i) を対数領域で計算
-    color_ratio = torch.log1p(
-        (image_tensor / intensity.clamp(min=epsilon)).clamp(min=epsilon))
+    # 1. RGB -> HSVに変換
+    hsv_tensor = kornia.color.rgb_to_hsv(image_tensor)
 
-    # MSRの結果に、色割合を反映させる
-    msrcr_log_r = msr_log_r * color_ratio
+    # 2. Vチャンネルを抽出 (H, S, Vがそれぞれ0, 1, 2番目のチャンネル)
+    v_channel = hsv_tensor[:, 2:3, :, :]
 
-    # 結果を[0, 1]の範囲に正規化して返す
-    # 各チャンネルごとに最小値・最大値で正規化
-    min_val = msrcr_log_r.min(
+    # 3. VチャンネルにのみMSRを適用
+    msr_v_log = msr_gpu(v_channel, sigmas)
+
+    # MSRの出力を[0, 1]に正規化
+    min_val = msr_v_log.min(
         dim=-1, keepdim=True)[0].min(dim=-2, keepdim=True)[0]
-    max_val = msrcr_log_r.max(
+    max_val = msr_v_log.max(
         dim=-1, keepdim=True)[0].max(dim=-2, keepdim=True)[0]
     range_val = (max_val - min_val).clamp(min=epsilon)
+    enhanced_v = (msr_v_log - min_val) / range_val
 
-    return (msrcr_log_r - min_val) / range_val
+    # 4. 元のH, Sチャンネルと、強調したVチャンネルを結合
+    # hsv_tensor[:, 0:1, :, :] -> Hチャンネル
+    # hsv_tensor[:, 1:2, :, :] -> Sチャンネル
+    enhanced_hsv = torch.cat([hsv_tensor[:, 0:2, :, :], enhanced_v], dim=1)
+
+    # 5. HSV -> RGBに戻す
+    final_rgb = kornia.color.hsv_to_rgb(enhanced_hsv)
+
+    return final_rgb.clamp(0.0, 1.0)
 
 
 # --- 実行フロー ---
 if __name__ == '__main__':
-    import cv2
-    import numpy as np
-
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # 1. 画像読み込み (BGR)
     image_bgr_np = cv2.imread("your_image.jpg")
-
-    # 2. ★最重要★ BGR -> RGBに変換
     image_rgb_np = cv2.cvtColor(image_bgr_np, cv2.COLOR_BGR2RGB)
 
-    # 3. テンソルに変換 (RGBのまま)
-    tensor_rgb = torch.from_numpy(image_rgb_np.astype(np.float32)) \
-        .permute(2, 0, 1) / 255.0
+    tensor_rgb = torch.from_numpy(image_rgb_np.astype(
+        np.float32)).permute(2, 0, 1) / 255.0
     tensor_rgb = tensor_rgb.unsqueeze(0).to(device)
 
-    # 4. MSRCRを適用
-    sigmas = [15, 80, 200]
-    processed_tensor = msrcr_gpu(tensor_rgb, sigmas)
+    print(f"入力Tensor形状: {tensor_rgb.shape}")
 
-    # 5. 結果をNumpyに戻す
+    # 新しい安定版関数を呼び出す
+    sigmas = [15, 80, 200]
+    processed_tensor = stable_retinex_gpu(tensor_rgb, sigmas)
+
     output_np_rgb = (processed_tensor.squeeze(0).cpu().permute(
         1, 2, 0).numpy() * 255).astype(np.uint8)
-
-    # 6. ★最重要★ 保存時にRGB -> BGRに戻す
     output_np_bgr = cv2.cvtColor(output_np_rgb, cv2.COLOR_RGB2BGR)
-    cv2.imwrite("msrcr_result.jpg", output_np_bgr)
+    cv2.imwrite("stable_retinex_result.jpg", output_np_bgr)
 
-    print("MSRCR処理が完了しました。")
+    print("安定版Retinex処理が完了しました。")
