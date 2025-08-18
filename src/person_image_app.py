@@ -198,16 +198,18 @@ class PersonImageReIDApp:
             try:
                 person_id, camera_id, view_id, image = self.data_set_manager.load_image(
                     file_path)
+                image = self.pre_processing_manager.np_image_to_tensor(image)
+                image.to(self.device)
                 if person_id == -1:
                     continue
                 if self.clahe:
                     image = self.pre_processing_manager.clahe(image)
                     file_path = self.output_dir_path / f"{person_id}_{camera_id}_{view_id}.jpg"
-                    cv2.imwrite(str(file_path), image)
+                    self.pre_processing_manager.tensor_image_output(image, str(file_path))
                 if self.retinex:
                     image = self.pre_processing_manager.retinex(image)
                     file_path = self.output_dir_path / f"{person_id}_{camera_id}_{view_id}.jpg"
-                    cv2.imwrite(str(file_path), image)
+                    self.pre_processing_manager.tensor_image_output(image, str(file_path))
                 features = self.reid_model_manager.extract_features(
                     image, camera_id, view_id)
                 self.data_manager.add_gallery(
