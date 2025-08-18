@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 
 from managers.post_processing_manager import PostProcessingManager
-from managers.reid_model_manager import ReIDModelManager
+from reid_models.clip_reid_processor import ClipReIDProcessor
 from managers.data_set_manager import DataSetManager
 from managers.data_manager import DataManager
 from managers.pre_processing_manager import PreProcessingManager
@@ -18,8 +18,6 @@ class PersonImageAppConfig:
     k_reciprocal_re_ranking: bool = False
     clahe: bool = False
     retinex: bool = False
-    class REID_BACKEND:
-        name: str = "clip"
 
     class DATA_SET:
         name: str = "market1501"
@@ -43,7 +41,6 @@ class PersonImageReIDApp:
         clahe: bool = PERSON_IMAGE_APP_CONFIG.clahe,
         retinex: bool = PERSON_IMAGE_APP_CONFIG.retinex,
         data_set_name: str = PERSON_IMAGE_APP_CONFIG.DATA_SET.name,
-        reid_backend: str = PERSON_IMAGE_APP_CONFIG.REID_BACKEND.name,
         max_rank: int = PERSON_IMAGE_APP_CONFIG.PostProcessing.max_rank,
         metric: str = PERSON_IMAGE_APP_CONFIG.PostProcessing.metric,
         use_metric_cuhk03: bool = PERSON_IMAGE_APP_CONFIG.PostProcessing.use_metric_cuhk03,
@@ -57,7 +54,6 @@ class PersonImageReIDApp:
         """
         self._setup_logging()
         self.data_set_name = data_set_name
-        self.reid_backend = reid_backend
         self.input_dir_str = input_dir_str
         self.output_dir_str = output_dir_str
         self.max_rank = max_rank
@@ -99,8 +95,7 @@ class PersonImageReIDApp:
         self.data_set_manager = DataSetManager(
             data_set_name=self.data_set_name)
 
-        self.reid_model_manager = ReIDModelManager(
-            backend=self.reid_backend)
+        self.clip_reid_processor = ClipReIDProcessor()
 
         self.post_processing_manager = PostProcessingManager(
             max_rank=self.max_rank,
@@ -209,7 +204,7 @@ class PersonImageReIDApp:
                     image = self.pre_processing_manager.retinex(image)
                     file_path = self.output_dir_path / f"{person_id}_{camera_id}_{view_id}.jpg"
                     self.pre_processing_manager.np_image_output(image, str(file_path))
-                features = self.reid_model_manager.extract_features(
+                features = self.clip_reid_processor.extract_features(
                     image, camera_id, view_id)
                 self.data_manager.add_gallery(
                     person_id, camera_id, view_id, features)
@@ -237,7 +232,7 @@ class PersonImageReIDApp:
                     image = self.pre_processing_manager.retinex(image)
                     file_path = self.output_dir_path / f"{person_id}_{camera_id}_{view_id}.jpg"
                     self.pre_processing_manager.np_image_output(image, str(file_path))
-                features = self.reid_model_manager.extract_features(
+                features = self.clip_reid_processor.extract_features(
                     image, camera_id, view_id)
                 self.data_manager.add_query(
                     person_id, camera_id, view_id, features)
