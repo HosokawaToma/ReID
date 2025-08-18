@@ -18,7 +18,8 @@ class PreProcessingManager:
     def _tensor_image_to_np(self, image: torch.Tensor) -> np.ndarray:
         image_rgb = image.squeeze(0).permute(1, 2, 0).numpy() * 255.0
         image_rgb_uint8 = image_rgb.astype(np.uint8)
-        return image_rgb_uint8
+        output_bgr_np = cv2.cvtColor(image_rgb_uint8, cv2.COLOR_RGB2BGR)
+        return output_bgr_np
 
     def np_image_output(self, image: np.ndarray, output_path: str) -> None:
         cv2.imwrite(output_path, image)
