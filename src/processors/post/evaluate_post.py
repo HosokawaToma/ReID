@@ -65,6 +65,12 @@ class EvaluatePostProcessor:
     def get_cmc(self) -> np.ndarray:
         return self.cmc
 
+    def get_A1(self) -> float:
+        return self.cmc[0]
+
+    def get_A5(self) -> float:
+        return self.cmc[4]
+
     def get_mAP(self) -> float:
         return self.mAP
 

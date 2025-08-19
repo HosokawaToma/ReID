@@ -1,90 +1,90 @@
 """複数人物画像直接処理アプリケーション"""
-import torch
 from dataclasses import dataclass
 from processors.logger import LoggerProcessor
 from processors.directory.data_set import DataSetDirectoryProcessor
-from processors.reid.clip import ClipReIDProcessor
-from processors.post.evaluate_post import EvaluatePostProcessor
 from processors.data_load.market1501 import Market1501DataLoadProcessor
-from processors.post.compute_roc_eer_f1 import ComputeRocEerF1PostProcessor
+from processors.reid.clip import ClipReIDProcessor
+from data_class.person_data_set_features import PersonDataSetFeatures
+from processors.post.evaluate_post import EvaluatePostProcessor
 
 @dataclass
 class Config:
-    class Application:
-        device: str = "cuda" if torch.cuda.is_available() else "cpu"
-        use_data_set_name: str = "market1501"
+    use_data_set_name: str = "market1501"
 
-    class PostProcessing:
-        class Evaluation:
-            max_rank: int = 50
-            metric: str = "cosine"
-            use_metric_cuhk03: bool = False
-            use_cython: bool = False
-            k_reciprocal_re_ranking: bool = False
 
 CONFIG = Config()
 
 class PersonImageReIDApp:
     """複数人物画像直接処理アプリケーション"""
     def __init__(self):
-        self.logger = LoggerProcessor().setup_logging()
-        self.data_set_processor = DataSetDirectoryProcessor(
-            use_data_set_name=CONFIG.Application.use_data_set_name)
-        self.data_set_processor.validate_directories()
-        self.data_set_processor.create_output_directory()
-        self.market1501_data_load_processor = Market1501DataLoadProcessor(
-            use_data_set_name=CONFIG.Application.use_data_set_name)
+        self.logger = LoggerProcessor.setup_logging()
+        self.data_set_directory_processor = DataSetDirectoryProcessor(
+            use_data_set_name=CONFIG.use_data_set_name)
         self.clip_reid_processor = ClipReIDProcessor()
-        self.evaluate_post_processor = EvaluatePostProcessor(
-            max_rank=CONFIG.PostProcessing.Evaluation.max_rank,
-            metric=CONFIG.PostProcessing.Evaluation.metric,
-            use_metric_cuhk03=CONFIG.PostProcessing.Evaluation.use_metric_cuhk03,
-            use_cython=CONFIG.PostProcessing.Evaluation.use_cython,
-            k_reciprocal_re_ranking=CONFIG.PostProcessing.Evaluation.k_reciprocal_re_ranking
-        )
-        self.compute_roc_eer_f1_post_processor = ComputeRocEerF1PostProcessor()
+        self.gallery_features = PersonDataSetFeatures()
+        self.query_features = PersonDataSetFeatures()
+        self.evaluate_processor = EvaluatePostProcessor()
 
     def run(self) -> None:
-        """アプリケーションの実行"""
         self.logger.info("アプリケーションの実行を開始します...")
 
-        self.logger.info("データセットから特徴量を抽出します...")
-        self.market1501_data_load_processor.load_gallery(
-            extract_feat=self.clip_reid_processor.extract_feat)
-        self.market1501_data_load_processor.load_query(
-            extract_feat=self.clip_reid_processor.extract_feat)
-        gallery_features = self.market1501_data_load_processor.get_gallery_features()
-        query_features = self.market1501_data_load_processor.get_query_features()
-        self.logger.info("データセットから特徴量の抽出が完了しました")
+        self._process_directory()
 
-        self.logger.info("評価を開始します...")
-        self.evaluate_post_processor.evaluate(
-            query_features=query_features,
-            gallery_features=gallery_features,
-            query_person_ids=query_features.persons_id,
-            gallery_person_ids=gallery_features.persons_id,
-            query_camera_ids=query_features.cameras_id,
-            gallery_camera_ids=gallery_features.cameras_id
-        )
-        cmc = self.evaluate_post_processor.get_cmc()
-        mAP = self.evaluate_post_processor.get_mAP()
-        self.logger.info("評価が完了しました")
-        self.logger.info(f"評価結果 - CMC: {cmc}, mAP: {mAP:.4f}")
+        self._process_images()
 
-        self.logger.info("ROC曲線を計算します...")
-        self.compute_roc_eer_f1_post_processor.compute(
-            query_feats=query_features.features,
-            gallery_feats=gallery_features.features,
-            query_person_ids=query_features.persons_id,
-            gallery_person_ids=gallery_features.persons_id
-        )
-        best_f1 = self.compute_roc_eer_f1_post_processor.get_best_f1()
-        best_f1_threshold = self.compute_roc_eer_f1_post_processor.get_best_f1_threshold()
-
-        self.logger.info(f"F1スコア: {best_f1}, F1閾値: {best_f1_threshold}")
-        self.logger.info("後処理が完了しました")
+        self._evaluate()
 
         self.logger.info("アプリケーションの実行が完了しました")
+
+    def _process_directory(self) -> None:
+        """ディレクトリの処理を行う"""
+        self.logger.info("ディレクトリの処理を開始します...")
+
+        self.logger.info("必要なディレクトリの確認を開始します...")
+        if not self.data_set_directory_processor.validate_directories():
+            self.logger.error("必要なディレクトリが存在しません")
+            return
+        self.logger.info("必要なディレクトリの確認が完了しました")
+
+        self.logger.info("出力ディレクトリの作成を開始します...")
+        self.data_set_directory_processor.create_output_directory()
+        self.logger.info("出力ディレクトリの作成が完了しました")
+
+        self.logger.info("ディレクトリの処理が完了しました")
+
+    def _process_images(self) -> None:
+        """画像の処理を行う"""
+        self.logger.info("ギャラリー画像の処理を開始します...")
+        for image_file_path in self.data_set_directory_processor.get_data_set_gallery_image_file_paths():
+            person_id, camera_id, view_id, image = Market1501DataLoadProcessor.load_image(image_file_path)
+            feat = self.clip_reid_processor.extract_feat(image, camera_id, view_id)
+            self.gallery_features.add_feature(feat)
+            self.gallery_features.add_person_id(person_id)
+            self.gallery_features.add_camera_id(camera_id)
+            self.gallery_features.add_view_id(view_id)
+        self.logger.info("ギャラリー画像の処理が完了しました")
+
+        self.logger.info("クエリ画像の処理を開始します...")
+        for image_file_path in self.data_set_directory_processor.get_data_set_query_image_file_paths():
+            person_id, camera_id, view_id, image = Market1501DataLoadProcessor.load_image(image_file_path)
+            feat = self.clip_reid_processor.extract_feat(image, camera_id, view_id)
+            self.query_features.add_feature(feat)
+            self.query_features.add_person_id(person_id)
+            self.query_features.add_camera_id(camera_id)
+            self.query_features.add_view_id(view_id)
+        self.logger.info("クエリ画像の処理が完了しました")
+
+    def _evaluate(self) -> None:
+        """評価を行う"""
+        self.logger.info("評価を開始します...")
+        self.evaluate_processor.evaluate(self.gallery_features, self.query_features)
+        a1 = self.evaluate_processor.get_A1()
+        a5 = self.evaluate_processor.get_A5()
+        mAP = self.evaluate_processor.get_mAP()
+        self.logger.info("評価が完了しました")
+        self.logger.info(f"A1: {a1}")
+        self.logger.info(f"A5: {a5}")
+        self.logger.info(f"mAP: {mAP}")
 
 
 def main():

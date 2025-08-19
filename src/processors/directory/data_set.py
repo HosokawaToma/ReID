@@ -1,15 +1,15 @@
 from pathlib import Path
-
-DATA_SET_DIR_STR = "resources/data_sets"
+from typing import List
 
 class DataSetDirectoryProcessor:
     def __init__(self, use_data_set_name: str):
-        self.data_set_dir_path = Path(DATA_SET_DIR_STR)
-        self.use_data_set_dir_path = Path(self.data_set_dir_path / use_data_set_name)
-        self.input_dir_path = Path(self.data_set_dir_path / "input")
-        self.data_set_gallery_dir_path = Path(self.use_data_set_dir_path / "gallery")
-        self.data_set_query_dir_path = Path(self.use_data_set_dir_path / "query")
-        self.output_dir_path = Path(self.use_data_set_dir_path / "output")
+        self.DATA_SET_DIR_PATH = Path("resources/data_sets")
+        self.use_data_set_name = use_data_set_name
+        self.use_data_set_dir_path = self.DATA_SET_DIR_PATH / self.use_data_set_name
+        self.input_dir_path = self.use_data_set_dir_path / "input"
+        self.output_dir_path = self.use_data_set_dir_path / "output"
+        self.gallery_dir_path = self.input_dir_path / "gallery"
+        self.query_dir_path = self.input_dir_path / "query"
 
     def create_output_directory(self) -> None:
         """ディレクトリの作成"""
@@ -18,10 +18,10 @@ class DataSetDirectoryProcessor:
     def validate_directories(self) -> bool:
         """ディレクトリの存在確認と作成"""
 
-        if not self.data_set_dir_path.exists():
+        if not self.use_data_set_dir_path.exists():
             return False
 
-        if not self.data_set_dir_path.is_dir():
+        if not self.use_data_set_dir_path.is_dir():
             return False
 
         if not self.input_dir_path.exists():
@@ -30,16 +30,24 @@ class DataSetDirectoryProcessor:
         if not self.input_dir_path.is_dir():
             return False
 
-        if not self.data_set_gallery_dir_path.exists():
+        if not self.gallery_dir_path.exists():
             return False
 
-        if not self.data_set_gallery_dir_path.is_dir():
+        if not self.gallery_dir_path.is_dir():
             return False
 
-        if not self.data_set_query_dir_path.exists():
+        if not self.query_dir_path.exists():
             return False
 
-        if not self.data_set_query_dir_path.is_dir():
+        if not self.query_dir_path.is_dir():
             return False
 
         return True
+
+    def get_data_set_gallery_image_file_paths(self) -> List[Path]:
+        """データセットのギャラリー画像ファイルパスを取得"""
+        return list(self.gallery_dir_path.glob("*.jpg"))
+
+    def get_data_set_query_image_file_paths(self) -> List[Path]:
+        """データセットのクエリ画像ファイルパスを取得"""
+        return list(self.query_dir_path.glob("*.jpg"))

@@ -1,7 +1,8 @@
 import logging
 
 class LoggerProcessor:
-    def setup_logging(self):
+    @staticmethod
+    def setup_logging():
         logging.basicConfig(
             level=logging.INFO,
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
