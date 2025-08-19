@@ -4,7 +4,7 @@ import cv2
 from library.pre_processing.retinex import stable_retinex_gpu
 
 class RetinexPreProcessor:
-    def __init__(self, device: str = "cpu"):
+    def __init__(self, device: str = "cuda" if torch.cuda.is_available() else "cpu"):
         self.device = device
 
     def _np_image_to_tensor(self, image: np.ndarray) -> torch.Tensor:

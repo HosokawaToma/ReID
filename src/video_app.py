@@ -9,10 +9,14 @@ from processors.directory.videos import VideosDirectoryProcessor
 from processors.yolo import YoloProcessor
 from processors.reid.clip import ClipReIDProcessor
 from processors.post.assign_person_id import AssignPersonIdPostProcessor
+from processors.pre.clahe import ClahePreProcessor
+from processors.pre.retinex import RetinexPreProcessor
 
 @dataclass
 class Config:
     SIMILARITY_THRESHOLD = 0.5
+    CLAHE_ENABLED = True
+    RETINEX_ENABLED = True
 
 
 CONFIG = Config()
@@ -29,6 +33,8 @@ class VideoReIDApp:
         self.assign_person_id_processor = AssignPersonIdPostProcessor(
             similarity_threshold=CONFIG.SIMILARITY_THRESHOLD
         )
+        self.clahe_processor = ClahePreProcessor()
+        self.retinex_processor = RetinexPreProcessor()
 
     def run(self) -> None:
         """アプリケーションの実行"""
@@ -89,10 +95,25 @@ class VideoReIDApp:
     def _process_video_frame(self, frame: np.ndarray, video_writer: cv2.VideoWriter) -> None:
         """動画フレームの処理"""
         person_detections = self.yolo_processor.extract_person_detections(frame)
+        if CONFIG.CLAHE_ENABLED:
+            clahe_frame = self.clahe_processor.clahe(frame)
+            for person_detection in person_detections:
+                bounding_box = person_detection.get_bounding_box()
+                x1, y1, x2, y2 = bounding_box.get_coordinate()
+                person_detection.set_person_crop(clahe_frame[y1:y2, x1:x2])
+        if CONFIG.RETINEX_ENABLED:
+            retinex_frame = self.retinex_processor.retinex(frame)
+            for person_detection in person_detections:
+                bounding_box = person_detection.get_bounding_box()
+                x1, y1, x2, y2 = bounding_box.get_coordinate()
+                person_detection.set_person_crop(retinex_frame[y1:y2, x1:x2])
         for person_detection in person_detections:
-            feature = self.clip_reid_processor.extract_feature(person_detection.person_crop)
+            person_crop = person_detection.get_person_crop()
+            feature = self.clip_reid_processor.extract_feature(person_crop)
             person_id = self.assign_person_id_processor.assign_person_id(feature)
-            frame = self._draw_detection(frame, person_detection.bounding_box, person_id)
+            bounding_box = person_detection.get_bounding_box()
+            x1, y1, x2, y2 = bounding_box.get_coordinate()
+            frame = self._draw_detection(frame, (x1, y1, x2, y2), person_id)
 
         video_writer.write(frame)
 

@@ -1,7 +1,8 @@
 import numpy as np
 from typing import List
 from ultralytics import YOLO
-from data_class.person_detections import PersonDetections
+from data_class.yolo_detections import YoloDetections
+from data_class.yolo_bounding_box import YoloBoundingBox
 
 MODEL_PATH = "models/yolo11n-pose.pt"
 CONFIDENCE_THRESHOLD = 0.5
@@ -17,7 +18,7 @@ class YoloProcessor:
         self.verbose = VERBOSE
         self.tracker = TRACKER
 
-    def extract_person_detections(self, frame: np.ndarray) -> List[PersonDetections]:
+    def extract_person_detections(self, frame: np.ndarray) -> List[YoloDetections]:
         results = self.model.track(
             frame,
             persist=True,
@@ -40,8 +41,9 @@ class YoloProcessor:
                 box_xywh = box.xywh[0].cpu().numpy()
                 box_conf = box.conf[0].cpu().numpy()
                 box_cls = int(box.cls[0].cpu().numpy())
-                detections.append(PersonDetections(
-                    box_id, box_xyxy, box_xywh, box_conf, box_cls
+                bounding_box = YoloBoundingBox(box_xyxy[0], box_xyxy[1], box_xyxy[2], box_xyxy[3])
+                detections.append(YoloDetections(
+                    box_id, bounding_box, box_xywh, box_conf, box_cls
                 ))
 
         return detections
