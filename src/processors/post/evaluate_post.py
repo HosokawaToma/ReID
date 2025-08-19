@@ -1,6 +1,5 @@
-import logging
 import torch
-from typing import List, Tuple
+from typing import List
 import numpy as np
 from torchreid import metrics
 from library.post_processing.k_reciprocal_encoding import re_ranking
@@ -8,18 +7,17 @@ from library.post_processing.k_reciprocal_encoding import re_ranking
 class EvaluatePostProcessor:
     def __init__(
         self,
-        max_rank: int,
-        metric: str,
-        use_metric_cuhk03: bool,
-        use_cython: bool,
-        k_reciprocal_re_ranking: bool
+        max_rank: int = 10,
+        metric: str = "cosine",
+        use_metric_cuhk03: bool = False,
+        use_cython: bool = False,
+        k_reciprocal_re_ranking: bool = False
     ):
         self.max_rank = max_rank
         self.metric = metric
         self.use_metric_cuhk03 = use_metric_cuhk03
         self.use_cython = use_cython
         self.k_reciprocal_re_ranking = k_reciprocal_re_ranking
-        self.logger = logging.getLogger(__name__)
         self.cmc = None
         self.mAP = None
 
@@ -32,8 +30,6 @@ class EvaluatePostProcessor:
         query_camera_ids: List[int],
         gallery_camera_ids: List[int],
     ) -> None:
-        self.logger.info("ReIDの精度の評価を開始します")
-
         if self.k_reciprocal_re_ranking:
             distance_matrix = self._k_reciprocal_re_ranking(
                 gallery_feats, query_feats)
@@ -56,8 +52,6 @@ class EvaluatePostProcessor:
             use_metric_cuhk03=self.use_metric_cuhk03,
             use_cython=self.use_cython
         )
-
-        self.logger.info("ReIDの精度の評価が完了しました")
 
         self.cmc = cmc
         self.mAP = mAP

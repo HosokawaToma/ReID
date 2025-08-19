@@ -11,6 +11,7 @@ from processors.post.compute_roc_eer_f1 import ComputeRocEerF1PostProcessor
 @dataclass
 class Config:
     use_data_set_name: str = "market1501"
+    k_reciprocal_re_ranking: bool = False
 
 
 CONFIG = Config()
@@ -22,9 +23,11 @@ class PersonImageReIDApp:
         self.data_set_directory_processor = DataSetDirectoryProcessor(
             use_data_set_name=CONFIG.use_data_set_name)
         self.clip_reid_processor = ClipReIDProcessor()
-        self.gallery_features = PersonDataSetFeatures()
-        self.query_features = PersonDataSetFeatures()
-        self.evaluate_processor = EvaluatePostProcessor()
+        self.gallery_data_set_features = PersonDataSetFeatures()
+        self.query_data_set_features = PersonDataSetFeatures()
+        self.evaluate_processor = EvaluatePostProcessor(
+            k_reciprocal_re_ranking=CONFIG.k_reciprocal_re_ranking
+        )
         self.compute_roc_eer_f1_processor = ComputeRocEerF1PostProcessor()
 
     def run(self) -> None:
@@ -59,30 +62,30 @@ class PersonImageReIDApp:
         self.logger.info("ギャラリー画像の処理を開始します...")
         for image_file_path in self.data_set_directory_processor.get_data_set_gallery_image_file_paths():
             person_id, camera_id, view_id, image = Market1501DataLoadProcessor.load_image(image_file_path)
-            feat = self.clip_reid_processor.extract_feat(image, camera_id, view_id)
-            self.gallery_features.add_feature(feat)
-            self.gallery_features.add_person_id(person_id)
-            self.gallery_features.add_camera_id(camera_id)
-            self.gallery_features.add_view_id(view_id)
+            feature = self.clip_reid_processor.extract_feature(image, camera_id, view_id)
+            self.gallery_data_set_features.add_feature(feature)
+            self.gallery_data_set_features.add_person_id(person_id)
+            self.gallery_data_set_features.add_camera_id(camera_id)
+            self.gallery_data_set_features.add_view_id(view_id)
         self.logger.info("ギャラリー画像の処理が完了しました")
 
         self.logger.info("クエリ画像の処理を開始します...")
         for image_file_path in self.data_set_directory_processor.get_data_set_query_image_file_paths():
             person_id, camera_id, view_id, image = Market1501DataLoadProcessor.load_image(image_file_path)
-            feat = self.clip_reid_processor.extract_feat(image, camera_id, view_id)
-            self.query_features.add_feature(feat)
-            self.query_features.add_person_id(person_id)
-            self.query_features.add_camera_id(camera_id)
-            self.query_features.add_view_id(view_id)
+            feature = self.clip_reid_processor.extract_feature(image, camera_id, view_id)
+            self.query_data_set_features.add_feature(feature)
+            self.query_data_set_features.add_person_id(person_id)
+            self.query_data_set_features.add_camera_id(camera_id)
+            self.query_data_set_features.add_view_id(view_id)
         self.logger.info("クエリ画像の処理が完了しました")
 
     def _evaluate(self) -> None:
         """評価を行う"""
         self.logger.info("評価を開始します...")
-        gallery_features = self.gallery_features.get_features()
-        query_features = self.query_features.get_features()
-        gallery_person_ids = self.gallery_features.get_person_ids()
-        query_person_ids = self.query_features.get_person_ids()
+        gallery_features = self.gallery_data_set_features.get_features()
+        query_features = self.query_data_set_features.get_features()
+        gallery_person_ids = self.gallery_data_set_features.get_person_ids()
+        query_person_ids = self.query_data_set_features.get_person_ids()
         self.evaluate_processor.evaluate(gallery_features, query_features)
         a1 = self.evaluate_processor.get_A1()
         a5 = self.evaluate_processor.get_A5()

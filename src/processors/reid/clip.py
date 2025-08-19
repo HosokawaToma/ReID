@@ -63,7 +63,7 @@ class ClipReIDProcessor:
             )
         ])
 
-    def extract_feat(
+    def extract_feature(
         self,
         image: np.ndarray,
         camera_id: int = 0,
@@ -93,6 +93,6 @@ class ClipReIDProcessor:
             view_id_tensor.to(self.device)
 
         with torch.no_grad():
-            feat = self.model(image_tensor, cam_label=camera_id_tensor, view_label=view_id_tensor)
+            feature = self.model(image_tensor, cam_label=camera_id_tensor, view_label=view_id_tensor)
 
-        return feat
+        return feature

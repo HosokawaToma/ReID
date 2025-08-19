@@ -90,8 +90,8 @@ class VideoReIDApp:
         """動画フレームの処理"""
         person_detections = self.yolo_processor.extract_person_detections(frame)
         for person_detection in person_detections:
-            feat = self.clip_reid_processor.extract_feat(person_detection.person_crop)
-            person_id = self.assign_person_id_processor.assign_person_id(feat)
+            feature = self.clip_reid_processor.extract_feature(person_detection.person_crop)
+            person_id = self.assign_person_id_processor.assign_person_id(feature)
             frame = self._draw_detection(frame, person_detection.bounding_box, person_id)
 
         video_writer.write(frame)

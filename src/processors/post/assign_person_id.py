@@ -6,20 +6,22 @@ class AssignPersonIdPostProcessor:
     def __init__(self, similarity_threshold: float):
         self.similarity_threshold = similarity_threshold
         self.next_person_id = 0
-        self.gallery_features = PersonDataSetFeatures(
-            persons_id=[], cameras_id=[], views_id=[], features=torch.tensor([]))
+        self.gallery_data_set_features = PersonDataSetFeatures()
 
     def assign_person_id(
         self,
-        query_feat: torch.Tensor
+        query_feature: torch.Tensor
     ) -> int:
         """人物IDを割り当てる"""
-        if query_feat is None or self.gallery_features.features is None or self.gallery_features.features.numel() == 0:
+        gallery_features = self.gallery_data_set_features.get_features()
+        gallery_person_ids = self.gallery_data_set_features.get_person_ids()
+
+        if query_feature is None or gallery_features is None or gallery_features.numel() == 0:
             self.next_person_id += 1
             return_person_id = self.next_person_id
         else:
             similarities = torch.nn.functional.cosine_similarity(
-                query_feat, self.gallery_features.features, dim=1, eps=1e-8)
+                query_feature, gallery_features, dim=1, eps=1e-8)
 
             valid_indices = similarities > self.similarity_threshold
 
@@ -28,15 +30,15 @@ class AssignPersonIdPostProcessor:
                 best_sim = similarities[best_idx].item()
 
                 if best_sim > self.similarity_threshold:
-                    return_person_id = self.gallery_features.persons_id[best_idx]
+                    return_person_id = gallery_person_ids[best_idx]
 
             if return_person_id is None:
                 self.next_person_id += 1
                 return_person_id = self.next_person_id
 
-        self.gallery_features.persons_id.append(return_person_id)
-        self.gallery_features.cameras_id.append(0)
-        self.gallery_features.views_id.append(0)
-        self.gallery_features.features = torch.cat([self.gallery_features.features, query_feat], dim=0)
+        self.gallery_features.add_feature(query_feature)
+        self.gallery_features.add_person_id(return_person_id)
+        self.gallery_features.add_camera_id(0)
+        self.gallery_features.add_view_id(0)
 
         return return_person_id
