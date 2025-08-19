@@ -3,25 +3,37 @@ import torch
 
 @dataclass
 class PersonDataSetFeatures:
-    persons_id: list[int]
-    cameras_id: list[int]
-    views_id: list[int]
-    features: torch.Tensor
+    _persons_id: list[int]
+    _cameras_id: list[int]
+    _views_id: list[int]
+    _features: torch.Tensor
 
     def __init__(self, persons_id: list[int] = [], cameras_id: list[int] = [], views_id: list[int] = [], features: torch.Tensor = torch.Tensor([])):
-        self.persons_id = persons_id
-        self.cameras_id = cameras_id
-        self.views_id = views_id
-        self.features = features
+        self._persons_id = persons_id
+        self._cameras_id = cameras_id
+        self._views_id = views_id
+        self._features = features
 
     def add_feature(self, feat: torch.Tensor) -> None:
-        self.features = torch.cat([self.features, feat], dim=0)
+        self._features = torch.cat([self._features, feat], dim=0)
 
     def add_person_id(self, person_id: int) -> None:
-        self.persons_id.append(person_id)
+        self._persons_id.append(person_id)
 
     def add_camera_id(self, camera_id: int) -> None:
-        self.cameras_id.append(camera_id)
+        self._cameras_id.append(camera_id)
 
     def add_view_id(self, view_id: int) -> None:
-        self.views_id.append(view_id)
+        self._views_id.append(view_id)
+
+    def get_features(self) -> torch.Tensor:
+        return self._features
+
+    def get_person_ids(self) -> list[int]:
+        return self._persons_id
+
+    def get_camera_ids(self) -> list[int]:
+        return self._cameras_id
+
+    def get_view_ids(self) -> list[int]:
+        return self._views_id
