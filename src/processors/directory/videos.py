@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import List
 
 VIDEOS_DIR_STR = "resources/videos"
 
@@ -17,3 +18,6 @@ class VideosDirectoryProcessor:
 
     def create_output_directory(self) -> None:
         self.output_dir_path.mkdir(parents=True, exist_ok=True)
+
+    def get_video_file_paths(self) -> List[Path]:
+        return list(self.videos_dir_path.glob("*.mp4"))

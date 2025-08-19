@@ -9,7 +9,7 @@ PERSON_CLASS_ID = 0
 VERBOSE = False
 TRACKER = "bytetrack.yaml"
 
-class YoloExtractPersonDetectionsProcessor:
+class YoloProcessor:
     def __init__(self):
         self.model = YOLO(MODEL_PATH)
         self.confidence_threshold = CONFIDENCE_THRESHOLD
