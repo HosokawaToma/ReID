@@ -1,5 +1,5 @@
 import torch
-from typing import List, Tuple
+from typing import List
 import numpy as np
 from sklearn.metrics import roc_curve, precision_recall_curve
 

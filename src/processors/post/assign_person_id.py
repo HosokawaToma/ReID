@@ -1,5 +1,4 @@
 import torch
-from typing import List
 from data_class.person_data_set_features import PersonDataSetFeatures
 
 class AssignPersonIdPostProcessor:
@@ -36,9 +35,9 @@ class AssignPersonIdPostProcessor:
                 self.next_person_id += 1
                 return_person_id = self.next_person_id
 
-        self.gallery_features.add_feature(query_feature)
-        self.gallery_features.add_person_id(return_person_id)
-        self.gallery_features.add_camera_id(0)
-        self.gallery_features.add_view_id(0)
+        self.gallery_data_set_features.add_feature(query_feature)
+        self.gallery_data_set_features.add_person_id(return_person_id)
+        self.gallery_data_set_features.add_camera_id(0)
+        self.gallery_data_set_features.add_view_id(0)
 
         return return_person_id
