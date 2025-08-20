@@ -11,13 +11,17 @@ from processors.reid.clip import ClipReIDProcessor
 from processors.post.assign_person_id import AssignPersonIdPostProcessor
 from processors.pre.clahe import ClahePreProcessor
 from processors.pre.retinex import RetinexPreProcessor
+from processors.yolo.verification import YoloVerificationProcessor
 
 @dataclass
 class Config:
     SIMILARITY_THRESHOLD = 0.5
     CLAHE_ENABLED = True
     RETINEX_ENABLED = True
-
+    YOLO_VERIFICATION_ENABLED = True
+    IOU_THRESHOLD = 0.5
+    MARGIN = 10
+    KEYPOINT_CONFIDENCE_THRESHOLD = 0.5
 
 CONFIG = Config()
 
@@ -35,7 +39,11 @@ class VideoReIDApp:
         )
         self.clahe_processor = ClahePreProcessor()
         self.retinex_processor = RetinexPreProcessor()
-
+        self.yolo_verification_processor = YoloVerificationProcessor(
+            iou_threshold=CONFIG.IOU_THRESHOLD,
+            margin=CONFIG.MARGIN,
+            keypoint_confidence_threshold=CONFIG.KEYPOINT_CONFIDENCE_THRESHOLD
+        )
     def run(self) -> None:
         """アプリケーションの実行"""
         self.logger.info("アプリケーションの実行を開始します...")
@@ -107,6 +115,8 @@ class VideoReIDApp:
                 bounding_box = person_detection.get_bounding_box()
                 x1, y1, x2, y2 = bounding_box.get_coordinate()
                 person_detection.set_person_crop(retinex_frame[y1:y2, x1:x2])
+        if CONFIG.YOLO_VERIFICATION_ENABLED:
+            person_detections = self.yolo_verification_processor.verification_person_detections(person_detections)
         for person_detection in person_detections:
             person_crop = person_detection.get_person_crop()
             feature = self.clip_reid_processor.extract_feature(person_crop)
