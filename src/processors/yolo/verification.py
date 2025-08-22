@@ -9,8 +9,17 @@ class YoloVerificationProcessor:
         self.margin = margin
         self.keypoint_confidence_threshold = keypoint_confidence_threshold
 
-    def verification_person_detections(person_detections: List[YoloDetections]) -> List[YoloDetections]:
+    def verification_person_detections(self,person_detections: List[YoloDetections]) -> List[YoloDetections]:
         return_person_detections = []
+
+        for person_detection in person_detections:
+            if self._is_overlap(person_detection.get_bounding_box(), person_detection.get_bounding_box()):
+                continue
+            if self._is_out_of_frame(person_detection.get_bounding_box(), person_detection.get_image_width(), person_detection.get_image_height()):
+                continue
+            if not self._is_keypoint_occluded(person_detection.get_keypoints()):
+                continue
+            return_person_detections.append(person_detection)
 
         return return_person_detections
 
