@@ -49,7 +49,7 @@ class YoloProcessor:
                 box_conf = box.conf[0].cpu().numpy()
                 box_cls = int(box.cls[0].cpu().numpy())
                 bounding_box = YoloBoundingBox(
-                    box_xyxy[0], box_xyxy[1], box_xyxy[2], box_xyxy[3])
+                    int(box_xyxy[0]), int(box_xyxy[1]), int(box_xyxy[2]), int(box_xyxy[3]))
                 keypoint_xys = keypoints.xy[0].cpu().numpy()
                 keypoint_confs = keypoints.conf[0].cpu().numpy()
                 yolo_keypoints = YoloKeypoints(

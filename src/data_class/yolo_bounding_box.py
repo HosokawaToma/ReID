@@ -15,4 +15,4 @@ class YoloBoundingBox:
         self._y2 = y2
 
     def get_coordinate(self) -> tuple[int, int, int, int]:
-        return self.x1, self.y1, self.x2, self.y2
+        return self._x1, self._y1, self._x2, self._y2
