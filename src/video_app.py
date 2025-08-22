@@ -17,8 +17,8 @@ from processors.yolo.verification import YoloVerificationProcessor
 @dataclass
 class Config:
     SIMILARITY_THRESHOLD = 0.5
-    CLAHE_ENABLED = True
-    RETINEX_ENABLED = True
+    CLAHE_ENABLED = False
+    RETINEX_ENABLED = False
     YOLO_VERIFICATION_ENABLED = True
     IOU_THRESHOLD = 0.5
     MARGIN = 10
@@ -106,14 +106,12 @@ class VideoReIDApp:
         person_detections = self.yolo_processor.extract_person_detections(frame)
         if CONFIG.CLAHE_ENABLED:
             clahe_frame = self.clahe_processor.clahe(frame)
-            cv2.imwrite(str(self.videos_directory_processor.output_dir_path / "clahe" / f"clahe_frame_{random.randint(0, 1000000)}.jpg"), clahe_frame)
             for person_detection in person_detections:
                 bounding_box = person_detection.get_bounding_box()
                 x1, y1, x2, y2 = bounding_box.get_coordinate()
                 person_detection.set_person_crop(clahe_frame[y1:y2, x1:x2])
         if CONFIG.RETINEX_ENABLED:
             retinex_frame = self.retinex_processor.retinex(frame)
-            cv2.imwrite(str(self.videos_directory_processor.output_dir_path / "retinex" / f"retinex_frame_{random.randint(0, 1000000)}.jpg"), retinex_frame)
             for person_detection in person_detections:
                 bounding_box = person_detection.get_bounding_box()
                 x1, y1, x2, y2 = bounding_box.get_coordinate()
