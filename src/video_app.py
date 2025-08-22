@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import numpy as np
 import cv2
+import random
 from typing import Tuple
 from processors.logger import LoggerProcessor
 from processors.directory.videos import VideosDirectoryProcessor
@@ -105,12 +106,14 @@ class VideoReIDApp:
         person_detections = self.yolo_processor.extract_person_detections(frame)
         if CONFIG.CLAHE_ENABLED:
             clahe_frame = self.clahe_processor.clahe(frame)
+            cv2.imwrite(str(self.videos_directory_processor.output_dir_path / "clahe" / f"clahe_frame_{random.randint(0, 1000000)}.jpg"), clahe_frame)
             for person_detection in person_detections:
                 bounding_box = person_detection.get_bounding_box()
                 x1, y1, x2, y2 = bounding_box.get_coordinate()
                 person_detection.set_person_crop(clahe_frame[y1:y2, x1:x2])
         if CONFIG.RETINEX_ENABLED:
             retinex_frame = self.retinex_processor.retinex(frame)
+            cv2.imwrite(str(self.videos_directory_processor.output_dir_path / "retinex" / f"retinex_frame_{random.randint(0, 1000000)}.jpg"), retinex_frame)
             for person_detection in person_detections:
                 bounding_box = person_detection.get_bounding_box()
                 x1, y1, x2, y2 = bounding_box.get_coordinate()
