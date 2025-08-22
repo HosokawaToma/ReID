@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from pathlib import Path
 import numpy as np
 import cv2
-import random
 from typing import Tuple
 from processors.logger import LoggerProcessor
 from processors.directory.videos import VideosDirectoryProcessor
