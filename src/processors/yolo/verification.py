@@ -12,12 +12,18 @@ class YoloVerificationProcessor:
     def verification_person_detections(self,person_detections: List[YoloDetections]) -> List[YoloDetections]:
         return_person_detections = []
 
-        for person_detection in person_detections:
-            if self._is_overlap(person_detection.get_bounding_box(), person_detection.get_bounding_box()):
+        for index in range(len(person_detections)):
+            next_index = index + 1
+            if next_index >= len(person_detections):
+                break
+            person_detection = person_detections[index]
+            next_person_detection = person_detections[next_index]
+            bounding_box = person_detection.get_bounding_box()
+            next_bounding_box = next_person_detection.get_bounding_box()
+            keypoints = person_detection.get_keypoints()
+            if self._is_overlap(bounding_box, next_bounding_box):
                 continue
-            if self._is_out_of_frame(person_detection.get_bounding_box(), person_detection.get_image_width(), person_detection.get_image_height()):
-                continue
-            if not self._is_keypoint_occluded(person_detection.get_keypoints()):
+            if not self._is_keypoint_occluded(keypoints):
                 continue
             return_person_detections.append(person_detection)
 
