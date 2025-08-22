@@ -49,7 +49,7 @@ class YoloProcessor:
                 box_conf = box.conf[0].cpu().numpy()
                 box_cls = int(box.cls[0].cpu().numpy())
                 bounding_box = YoloBoundingBox(
-                    int(box_xyxy[0]), int(box_xyxy[1]), int(box_xyxy[2]), int(box_xyxy[3]))
+                    int(box_xyxy[0]), int(box_xyxy[1]), int(box_xyxy[2]), int(box_xyxy[3]), int(box_xywh[2]), int(box_xywh[3]))
                 keypoint_xys = keypoints.xy[0].cpu().numpy()
                 keypoint_confs = keypoints.conf[0].cpu().numpy()
                 yolo_keypoints = YoloKeypoints(
@@ -72,7 +72,7 @@ class YoloProcessor:
                     YoloKeypoint(keypoint_xys[16][0], keypoint_xys[16][1], keypoint_confs[16])
                 )
                 detections.append(YoloDetections(
-                    box_id, bounding_box, yolo_keypoints, box_xywh, box_conf, box_cls
+                    box_id, bounding_box, yolo_keypoints, box_conf, box_cls
                 ))
 
         return detections
