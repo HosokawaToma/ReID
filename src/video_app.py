@@ -121,43 +121,32 @@ class VideoReIDApp:
         if CONFIG.YOLO_VERIFICATION_ENABLED:
             person_detections = self.yolo_verification_processor.verification_person_detections(
                 person_detections)
-        if CONFIG.CLAHE_ENABLED:
-            clahe_frame = self.clahe_processor.process(frame)
-        if CONFIG.RETINEX_ENABLED:
-            retinex_frame = self.retinex_processor.process(frame)
-        if CONFIG.HOMOMORPHIC_FILTER_ENABLED:
-            homomorphic_frame = self.homorphic_filter_processor.process(frame)
-        if CONFIG.LOGARITHMIC_TRANSFORM_ENABLED:
-            logarithmic_frame = self.logarithmic_transform_processor.process(frame)
-        if CONFIG.ACE_ENABLED:
-            ace_frame = self.ace_processor.process(frame)
-        if CONFIG.ANISOTROPIC_DIFFUSION_ENABLED:
-            anisotropic_diffusion_frame = self.anisotropic_diffusion_processor.process(frame)
-        if CONFIG.WAVELET_ENABLED:
-            wavelet_frame = self.wavelet_processor.process(frame)
+        pre_processed_frame = self._pre_process_frame(frame)
         for person_detection in person_detections:
             bounding_box = person_detection.get_bounding_box()
             x1, y1, x2, y2 = bounding_box.get_coordinate()
-            if CONFIG.CLAHE_ENABLED:
-                person_crop = clahe_frame[y1:y2, x1:x2]
-            elif CONFIG.RETINEX_ENABLED:
-                person_crop = retinex_frame[y1:y2, x1:x2]
-            elif CONFIG.HOMOMORPHIC_FILTER_ENABLED:
-                person_crop = homomorphic_frame[y1:y2, x1:x2]
-            elif CONFIG.LOGARITHMIC_TRANSFORM_ENABLED:
-                person_crop = logarithmic_frame[y1:y2, x1:x2]
-            elif CONFIG.ACE_ENABLED:
-                person_crop = ace_frame[y1:y2, x1:x2]
-            elif CONFIG.ANISOTROPIC_DIFFUSION_ENABLED:
-                person_crop = anisotropic_diffusion_frame[y1:y2, x1:x2]
-            elif CONFIG.WAVELET_ENABLED:
-                person_crop = wavelet_frame[y1:y2, x1:x2]
-            else:
-                person_crop = frame[y1:y2, x1:x2]
+            person_crop = pre_processed_frame[y1:y2, x1:x2]
             feature = self.clip_reid_processor.extract_feature(person_crop)
             person_id = self.assign_person_id_processor.assign_person_id(feature)
             frame = self._draw_detection(frame, (x1, y1, x2, y2), person_id)
         video_writer.write(frame)
+
+    def _pre_process_frame(self, frame: np.ndarray) -> np.ndarray:
+        if CONFIG.CLAHE_ENABLED:
+            frame = self.clahe_processor.process(frame)
+        if CONFIG.RETINEX_ENABLED:
+            frame = self.retinex_processor.process(frame)
+        if CONFIG.HOMOMORPHIC_FILTER_ENABLED:
+            frame = self.homorphic_filter_processor.process(frame)
+        if CONFIG.LOGARITHMIC_TRANSFORM_ENABLED:
+            frame = self.logarithmic_transform_processor.process(frame)
+        if CONFIG.ACE_ENABLED:
+            frame = self.ace_processor.process(frame)
+        if CONFIG.ANISOTROPIC_DIFFUSION_ENABLED:
+            frame = self.anisotropic_diffusion_processor.process(frame)
+        if CONFIG.WAVELET_ENABLED:
+            frame = self.wavelet_processor.process(frame)
+        return frame
 
     def _draw_detection(self, frame: np.ndarray, bounding_box: np.ndarray, person_id: int) -> np.ndarray:
         color = self._get_color_for_id(person_id)
