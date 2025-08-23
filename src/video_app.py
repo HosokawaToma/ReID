@@ -11,6 +11,8 @@ from processors.reid.clip import ClipReIDProcessor
 from processors.post.assign_person_id import AssignPersonIdPostProcessor
 from processors.pre.clahe import ClahePreProcessor
 from processors.pre.retinex import RetinexPreProcessor
+from processors.pre.homorphic_filter import HomorphicFilterProcessor
+from processors.pre.logarithmic_transform import LogarithmicTransformProcessor
 from processors.yolo.verification import YoloVerificationProcessor
 
 @dataclass
@@ -18,6 +20,8 @@ class Config:
     SIMILARITY_THRESHOLD = 0.5
     CLAHE_ENABLED = False
     RETINEX_ENABLED = False
+    HOMOMORPHIC_FILTER_ENABLED = False
+    LOGARITHMIC_TRANSFORM_ENABLED = False
     YOLO_VERIFICATION_ENABLED = False
     IOU_THRESHOLD = 0.1
     MARGIN = 10
@@ -39,6 +43,8 @@ class VideoReIDApp:
         )
         self.clahe_processor = ClahePreProcessor()
         self.retinex_processor = RetinexPreProcessor()
+        self.homorphic_filter_processor = HomorphicFilterProcessor()
+        self.logarithmic_transform_processor = LogarithmicTransformProcessor()
         self.yolo_verification_processor = YoloVerificationProcessor(
             iou_threshold=CONFIG.IOU_THRESHOLD,
             margin=CONFIG.MARGIN,
@@ -107,9 +113,13 @@ class VideoReIDApp:
             person_detections = self.yolo_verification_processor.verification_person_detections(
                 person_detections)
         if CONFIG.CLAHE_ENABLED:
-            clahe_frame = self.clahe_processor.clahe(frame)
+            clahe_frame = self.clahe_processor.process(frame)
         if CONFIG.RETINEX_ENABLED:
-            retinex_frame = self.retinex_processor.retinex(frame)
+            retinex_frame = self.retinex_processor.process(frame)
+        if CONFIG.HOMOMORPHIC_FILTER_ENABLED:
+            homomorphic_frame = self.homorphic_filter_processor.process(frame)
+        if CONFIG.LOGARITHMIC_TRANSFORM_ENABLED:
+            logarithmic_frame = self.logarithmic_transform_processor.process(frame)
         for person_detection in person_detections:
             bounding_box = person_detection.get_bounding_box()
             x1, y1, x2, y2 = bounding_box.get_coordinate()
@@ -117,6 +127,10 @@ class VideoReIDApp:
                 person_crop = clahe_frame[y1:y2, x1:x2]
             elif CONFIG.RETINEX_ENABLED:
                 person_crop = retinex_frame[y1:y2, x1:x2]
+            elif CONFIG.HOMOMORPHIC_FILTER_ENABLED:
+                person_crop = homomorphic_frame[y1:y2, x1:x2]
+            elif CONFIG.LOGARITHMIC_TRANSFORM_ENABLED:
+                person_crop = logarithmic_frame[y1:y2, x1:x2]
             else:
                 person_crop = frame[y1:y2, x1:x2]
             feature = self.clip_reid_processor.extract_feature(person_crop)
