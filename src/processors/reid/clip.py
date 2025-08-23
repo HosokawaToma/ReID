@@ -1,3 +1,4 @@
+import os
 import logging
 import numpy as np
 import torch
@@ -42,14 +43,12 @@ class ClipReIDProcessor:
 
     def _initialize_model(self) -> None:
         """CLIP-ReIDモデルの初期化"""
+        os.environ['CUDA_VISIBLE_DEVICES'] = cfg.MODEL.DEVICE_ID
         _, _, _, _, num_classes, camera_num, view_num = make_clip_dataloader(self.config)
         model = make_clip_model(
             self.config, num_class=num_classes, camera_num=camera_num, view_num=view_num)
 
         model.load_param(self.config.TEST.WEIGHT)
-        self.device = self.config.MODEL.DEVICE
-        self.sie_camera = self.config.MODEL.SIE_CAMERA
-        self.sie_view = self.config.MODEL.SIE_VIEW
         self.model = model
 
     def _initialize_transform(self) -> None:
@@ -80,17 +79,17 @@ class ClipReIDProcessor:
         """
 
         image_pil = Image.fromarray(image[:, :, ::-1])
-        image_tensor = self.transform(image_pil).unsqueeze(0).to(self.device)
+        image_tensor = self.transform(image_pil).unsqueeze(0).to(self.config.MODEL.DEVICE)
         camera_id_tensor = None
         view_id_tensor = None
 
         if self.config.MODEL.SIE_CAMERA:
             camera_id_tensor = torch.tensor(camera_id, dtype=torch.long)
-            camera_id_tensor.to(self.device)
+            camera_id_tensor.to(self.config.MODEL.DEVICE)
 
         if self.config.MODEL.SIE_VIEW:
             view_id_tensor = torch.tensor(view_id, dtype=torch.long)
-            view_id_tensor.to(self.device)
+            view_id_tensor.to(self.config.MODEL.DEVICE)
 
         with torch.no_grad():
             feature = self.model(image_tensor, cam_label=camera_id_tensor, view_label=view_id_tensor)
