@@ -7,6 +7,7 @@ from processors.reid.clip import ClipReIDProcessor
 from data_class.person_data_set_features import PersonDataSetFeatures
 from processors.post.evaluate_post import EvaluatePostProcessor
 from processors.post.compute_roc_eer_f1 import ComputeRocEerF1PostProcessor
+from processors.data_load.osaka import OsakaDataLoadProcessor
 
 @dataclass
 class Config:
@@ -61,7 +62,10 @@ class PersonImageReIDApp:
         """画像の処理を行う"""
         self.logger.info("ギャラリー画像の処理を開始します...")
         for image_file_path in self.data_set_directory_processor.get_data_set_gallery_image_file_paths():
-            person_id, camera_id, view_id, image = Market1501DataLoadProcessor.load_image(image_file_path)
+            if CONFIG.use_data_set_name == "market1501":
+                person_id, camera_id, view_id, image = Market1501DataLoadProcessor.load_image(image_file_path)
+            elif CONFIG.use_data_set_name == "osaka":
+                person_id, camera_id, view_id, image = OsakaDataLoadProcessor.load_data(image_file_path)
             feature = self.clip_reid_processor.extract_feature(image, camera_id, view_id)
             self.gallery_data_set_features.add_feature(feature)
             self.gallery_data_set_features.add_person_id(person_id)
@@ -71,7 +75,10 @@ class PersonImageReIDApp:
 
         self.logger.info("クエリ画像の処理を開始します...")
         for image_file_path in self.data_set_directory_processor.get_data_set_query_image_file_paths():
-            person_id, camera_id, view_id, image = Market1501DataLoadProcessor.load_image(image_file_path)
+            if CONFIG.use_data_set_name == "market1501":
+                person_id, camera_id, view_id, image = Market1501DataLoadProcessor.load_image(image_file_path)
+            elif CONFIG.use_data_set_name == "osaka":
+                person_id, camera_id, view_id, image = OsakaDataLoadProcessor.load_data(image_file_path)
             feature = self.clip_reid_processor.extract_feature(image, camera_id, view_id)
             self.query_data_set_features.add_feature(feature)
             self.query_data_set_features.add_person_id(person_id)
