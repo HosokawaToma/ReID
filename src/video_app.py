@@ -13,6 +13,9 @@ from processors.pre.clahe import ClahePreProcessor
 from processors.pre.retinex import RetinexPreProcessor
 from processors.pre.homorphic_filter import HomorphicFilterProcessor
 from processors.pre.logarithmic_transform import LogarithmicTransformProcessor
+from processors.pre.ace import AcePreProcessor
+from processors.pre.anisotropic_diffusion import AnisotropicDiffusionPreProcessor
+from processors.pre.wavelet import WaveletPreProcessor
 from processors.yolo.verification import YoloVerificationProcessor
 
 @dataclass
@@ -22,6 +25,9 @@ class Config:
     RETINEX_ENABLED = False
     HOMOMORPHIC_FILTER_ENABLED = False
     LOGARITHMIC_TRANSFORM_ENABLED = False
+    ACE_ENABLED = False
+    ANISOTROPIC_DIFFUSION_ENABLED = False
+    WAVELET_ENABLED = False
     YOLO_VERIFICATION_ENABLED = False
     IOU_THRESHOLD = 0.1
     MARGIN = 10
@@ -45,6 +51,9 @@ class VideoReIDApp:
         self.retinex_processor = RetinexPreProcessor()
         self.homorphic_filter_processor = HomorphicFilterProcessor()
         self.logarithmic_transform_processor = LogarithmicTransformProcessor()
+        self.ace_processor = AcePreProcessor()
+        self.anisotropic_diffusion_processor = AnisotropicDiffusionPreProcessor()
+        self.wavelet_processor = WaveletPreProcessor()
         self.yolo_verification_processor = YoloVerificationProcessor(
             iou_threshold=CONFIG.IOU_THRESHOLD,
             margin=CONFIG.MARGIN,
@@ -120,6 +129,12 @@ class VideoReIDApp:
             homomorphic_frame = self.homorphic_filter_processor.process(frame)
         if CONFIG.LOGARITHMIC_TRANSFORM_ENABLED:
             logarithmic_frame = self.logarithmic_transform_processor.process(frame)
+        if CONFIG.ACE_ENABLED:
+            ace_frame = self.ace_processor.process(frame)
+        if CONFIG.ANISOTROPIC_DIFFUSION_ENABLED:
+            anisotropic_diffusion_frame = self.anisotropic_diffusion_processor.process(frame)
+        if CONFIG.WAVELET_ENABLED:
+            wavelet_frame = self.wavelet_processor.process(frame)
         for person_detection in person_detections:
             bounding_box = person_detection.get_bounding_box()
             x1, y1, x2, y2 = bounding_box.get_coordinate()
@@ -131,6 +146,12 @@ class VideoReIDApp:
                 person_crop = homomorphic_frame[y1:y2, x1:x2]
             elif CONFIG.LOGARITHMIC_TRANSFORM_ENABLED:
                 person_crop = logarithmic_frame[y1:y2, x1:x2]
+            elif CONFIG.ACE_ENABLED:
+                person_crop = ace_frame[y1:y2, x1:x2]
+            elif CONFIG.ANISOTROPIC_DIFFUSION_ENABLED:
+                person_crop = anisotropic_diffusion_frame[y1:y2, x1:x2]
+            elif CONFIG.WAVELET_ENABLED:
+                person_crop = wavelet_frame[y1:y2, x1:x2]
             else:
                 person_crop = frame[y1:y2, x1:x2]
             feature = self.clip_reid_processor.extract_feature(person_crop)

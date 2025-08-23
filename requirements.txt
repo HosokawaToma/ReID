@@ -26,6 +26,7 @@ ftfy
 regex
 tqdm
 scikit-learn>=1.0.0
+pytorch-wavelets
 
 # ReID evaluation and visualization
 torchreid>=0.2.5
