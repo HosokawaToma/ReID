@@ -33,3 +33,5 @@ torchreid>=0.2.5
 matplotlib>=3.5.0
 gdown>=4.0.0
 tensorboard>=2.0.0
+
+yacs

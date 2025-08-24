@@ -100,7 +100,7 @@ class VideoReIDApp:
         frame_height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
         frame_rate = int(video_capture.get(cv2.CAP_PROP_FPS))
         video_writer = cv2.VideoWriter(
-            str(self.videos_directory_processor.output_dir_path / video_file_path.name),
+            str(self.videos_directory_processor.get_output_dir_path() / video_file_path.name),
             cv2.VideoWriter_fourcc(*"mp4v"),
             frame_rate,
             (frame_width, frame_height)
@@ -132,20 +132,28 @@ class VideoReIDApp:
         video_writer.write(frame)
 
     def _pre_process_frame(self, frame: np.ndarray) -> np.ndarray:
+        output_dir_path = self.videos_directory_processor.get_output_dir_path()
         if CONFIG.CLAHE_ENABLED:
-            frame = self.clahe_processor.process(frame)
+            clahe_frame = self.clahe_processor.process(frame)
+            cv2.imwrite(str(output_dir_path / "clahe_frame.png"), clahe_frame)
         if CONFIG.RETINEX_ENABLED:
-            frame = self.retinex_processor.process(frame)
+            retinex_frame = self.retinex_processor.process(frame)
+            cv2.imwrite(str(output_dir_path / "retinex_frame.png"), retinex_frame)
         if CONFIG.HOMOMORPHIC_FILTER_ENABLED:
-            frame = self.homorphic_filter_processor.process(frame)
+            homomorphic_filter_frame = self.homorphic_filter_processor.process(frame)
+            cv2.imwrite(str(output_dir_path / "homorphic_filter_frame.png"), homomorphic_filter_frame)
         if CONFIG.LOGARITHMIC_TRANSFORM_ENABLED:
-            frame = self.logarithmic_transform_processor.process(frame)
+            logarithmic_transform_frame = self.logarithmic_transform_processor.process(frame)
+            cv2.imwrite(str(output_dir_path / "logarithmic_transform_frame.png"), logarithmic_transform_frame)
         if CONFIG.ACE_ENABLED:
-            frame = self.ace_processor.process(frame)
+            ace_frame = self.ace_processor.process(frame)
+            cv2.imwrite(str(output_dir_path / "ace_frame.png"), ace_frame)
         if CONFIG.ANISOTROPIC_DIFFUSION_ENABLED:
-            frame = self.anisotropic_diffusion_processor.process(frame)
+            anisotropic_diffusion_frame = self.anisotropic_diffusion_processor.process(frame)
+            cv2.imwrite(str(output_dir_path / "anisotropic_diffusion_frame.png"), anisotropic_diffusion_frame)
         if CONFIG.WAVELET_ENABLED:
-            frame = self.wavelet_processor.process(frame)
+            wavelet_frame = self.wavelet_processor.process(frame)
+            cv2.imwrite(str(output_dir_path / "wavelet_frame.png"), wavelet_frame)
         return frame
 
     def _draw_detection(self, frame: np.ndarray, bounding_box: np.ndarray, person_id: int) -> np.ndarray:
