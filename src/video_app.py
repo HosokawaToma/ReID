@@ -20,16 +20,8 @@ from processors.yolo.verification import YoloVerificationProcessor
 
 @dataclass
 class Config:
-    class PreProcessing:
-        CLAHE_ENABLED = False
-        RETINEX_ENABLED = False
-        HOMOMORPHIC_FILTER_ENABLED = False
-        LOGARITHMIC_TRANSFORM_ENABLED = False
-        ACE_ENABLED = False
-        ANISOTROPIC_DIFFUSION_ENABLED = False
-        WAVELET_ENABLED = False
-    class PostProcessing:
-        YOLO_VERIFICATION_ENABLED = False
+    IMAGE_PROCESS = "clahe"
+    YOLO_VERIFICATION_ENABLED = True
 
 CONFIG = Config()
 
@@ -92,8 +84,9 @@ class VideoReIDApp:
         frame_width = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
         frame_rate = int(video_capture.get(cv2.CAP_PROP_FPS))
+        output_file_name = f"{CONFIG.IMAGE_PROCESS}_{video_file_path.stem}.mp4"
         video_writer = cv2.VideoWriter(
-            str(self.videos_directory_processor.get_output_dir_path() / video_file_path.name),
+            str(self.videos_directory_processor.get_output_dir_path() / output_file_name),
             cv2.VideoWriter_fourcc(*"mp4v"),
             frame_rate,
             (frame_width, frame_height)
@@ -111,7 +104,7 @@ class VideoReIDApp:
     def _process_video_frame(self, frame: np.ndarray, video_writer: cv2.VideoWriter) -> None:
         """動画フレームの処理"""
         person_detections = self.yolo_processor.extract_person_detections(frame)
-        if CONFIG.PostProcessing.YOLO_VERIFICATION_ENABLED:
+        if CONFIG.YOLO_VERIFICATION_ENABLED:
             person_detections = self.yolo_verification_processor.verification_person_detections(
                 person_detections)
         pre_processed_frame = self._pre_process_frame(frame)
@@ -126,25 +119,25 @@ class VideoReIDApp:
 
     def _pre_process_frame(self, frame: np.ndarray) -> np.ndarray:
         output_dir_path = self.videos_directory_processor.get_output_dir_path()
-        if CONFIG.PreProcessing.CLAHE_ENABLED:
+        if CONFIG.IMAGE_PROCESS == "clahe":
             clahe_frame = self.clahe_processor.process(frame)
             cv2.imwrite(str(output_dir_path / "clahe_frame.png"), clahe_frame)
-        if CONFIG.PreProcessing.RETINEX_ENABLED:
+        elif CONFIG.IMAGE_PROCESS == "retinex":
             retinex_frame = self.retinex_processor.process(frame)
             cv2.imwrite(str(output_dir_path / "retinex_frame.png"), retinex_frame)
-        if CONFIG.PreProcessing.HOMOMORPHIC_FILTER_ENABLED:
+        elif CONFIG.IMAGE_PROCESS == "homorphic_filter":
             homomorphic_filter_frame = self.homorphic_filter_processor.process(frame)
             cv2.imwrite(str(output_dir_path / "homorphic_filter_frame.png"), homomorphic_filter_frame)
-        if CONFIG.PreProcessing.LOGARITHMIC_TRANSFORM_ENABLED:
+        elif CONFIG.IMAGE_PROCESS == "logarithmic_transform":
             logarithmic_transform_frame = self.logarithmic_transform_processor.process(frame)
             cv2.imwrite(str(output_dir_path / "logarithmic_transform_frame.png"), logarithmic_transform_frame)
-        if CONFIG.PreProcessing.ACE_ENABLED:
+        elif CONFIG.IMAGE_PROCESS == "ace":
             ace_frame = self.ace_processor.process(frame)
             cv2.imwrite(str(output_dir_path / "ace_frame.png"), ace_frame)
-        if CONFIG.PreProcessing.ANISOTROPIC_DIFFUSION_ENABLED:
+        elif CONFIG.IMAGE_PROCESS == "anisotropic_diffusion":
             anisotropic_diffusion_frame = self.anisotropic_diffusion_processor.process(frame)
             cv2.imwrite(str(output_dir_path / "anisotropic_diffusion_frame.png"), anisotropic_diffusion_frame)
-        if CONFIG.PreProcessing.WAVELET_ENABLED:
+        elif CONFIG.IMAGE_PROCESS == "wavelet":
             wavelet_frame = self.wavelet_processor.process(frame)
             cv2.imwrite(str(output_dir_path / "wavelet_frame.png"), wavelet_frame)
         return frame
