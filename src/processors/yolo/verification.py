@@ -3,11 +3,15 @@ from data_class.yolo_detections import YoloDetections
 from data_class.yolo_bounding_box import YoloBoundingBox
 from data_class.yolo_keypoints import YoloKeypoints
 
+IOU_THRESHOLD = 0.1
+MARGIN = 10
+KEYPOINT_CONFIDENCE_THRESHOLD = 0.1
+
 class YoloVerificationProcessor:
-    def __init__(self, iou_threshold: float, margin: int, keypoint_confidence_threshold: float):
-        self.iou_threshold = iou_threshold
-        self.margin = margin
-        self.keypoint_confidence_threshold = keypoint_confidence_threshold
+    def __init__(self):
+        self.iou_threshold = IOU_THRESHOLD
+        self.margin = MARGIN
+        self.keypoint_confidence_threshold = KEYPOINT_CONFIDENCE_THRESHOLD
 
     def verification_person_detections(self,person_detections: List[YoloDetections]) -> List[YoloDetections]:
         return_person_detections = []

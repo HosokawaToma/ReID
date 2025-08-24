@@ -20,18 +20,16 @@ from processors.yolo.verification import YoloVerificationProcessor
 
 @dataclass
 class Config:
-    SIMILARITY_THRESHOLD = 0.5
-    CLAHE_ENABLED = False
-    RETINEX_ENABLED = False
-    HOMOMORPHIC_FILTER_ENABLED = False
-    LOGARITHMIC_TRANSFORM_ENABLED = False
-    ACE_ENABLED = False
-    ANISOTROPIC_DIFFUSION_ENABLED = False
-    WAVELET_ENABLED = False
-    YOLO_VERIFICATION_ENABLED = False
-    IOU_THRESHOLD = 0.1
-    MARGIN = 10
-    KEYPOINT_CONFIDENCE_THRESHOLD = 0.1
+    class PreProcessing:
+        CLAHE_ENABLED = False
+        RETINEX_ENABLED = False
+        HOMOMORPHIC_FILTER_ENABLED = False
+        LOGARITHMIC_TRANSFORM_ENABLED = False
+        ACE_ENABLED = False
+        ANISOTROPIC_DIFFUSION_ENABLED = False
+        WAVELET_ENABLED = False
+    class PostProcessing:
+        YOLO_VERIFICATION_ENABLED = False
 
 CONFIG = Config()
 
@@ -44,9 +42,7 @@ class VideoReIDApp:
         self.videos_directory_processor = VideosDirectoryProcessor()
         self.yolo_processor = YoloProcessor()
         self.clip_reid_processor = ClipReIDProcessor()
-        self.assign_person_id_processor = AssignPersonIdPostProcessor(
-            similarity_threshold=CONFIG.SIMILARITY_THRESHOLD
-        )
+        self.assign_person_id_processor = AssignPersonIdPostProcessor()
         self.clahe_processor = ClahePreProcessor()
         self.retinex_processor = RetinexPreProcessor()
         self.homorphic_filter_processor = HomorphicFilterProcessor()
@@ -54,11 +50,8 @@ class VideoReIDApp:
         self.ace_processor = AcePreProcessor()
         self.anisotropic_diffusion_processor = AnisotropicDiffusionPreProcessor()
         self.wavelet_processor = WaveletPreProcessor()
-        self.yolo_verification_processor = YoloVerificationProcessor(
-            iou_threshold=CONFIG.IOU_THRESHOLD,
-            margin=CONFIG.MARGIN,
-            keypoint_confidence_threshold=CONFIG.KEYPOINT_CONFIDENCE_THRESHOLD
-        )
+        self.yolo_verification_processor = YoloVerificationProcessor()
+
     def run(self) -> None:
         """アプリケーションの実行"""
         self.logger.info("アプリケーションの実行を開始します...")
@@ -118,7 +111,7 @@ class VideoReIDApp:
     def _process_video_frame(self, frame: np.ndarray, video_writer: cv2.VideoWriter) -> None:
         """動画フレームの処理"""
         person_detections = self.yolo_processor.extract_person_detections(frame)
-        if CONFIG.YOLO_VERIFICATION_ENABLED:
+        if CONFIG.PostProcessing.YOLO_VERIFICATION_ENABLED:
             person_detections = self.yolo_verification_processor.verification_person_detections(
                 person_detections)
         pre_processed_frame = self._pre_process_frame(frame)
@@ -133,25 +126,25 @@ class VideoReIDApp:
 
     def _pre_process_frame(self, frame: np.ndarray) -> np.ndarray:
         output_dir_path = self.videos_directory_processor.get_output_dir_path()
-        if CONFIG.CLAHE_ENABLED:
+        if CONFIG.PreProcessing.CLAHE_ENABLED:
             clahe_frame = self.clahe_processor.process(frame)
             cv2.imwrite(str(output_dir_path / "clahe_frame.png"), clahe_frame)
-        if CONFIG.RETINEX_ENABLED:
+        if CONFIG.PreProcessing.RETINEX_ENABLED:
             retinex_frame = self.retinex_processor.process(frame)
             cv2.imwrite(str(output_dir_path / "retinex_frame.png"), retinex_frame)
-        if CONFIG.HOMOMORPHIC_FILTER_ENABLED:
+        if CONFIG.PreProcessing.HOMOMORPHIC_FILTER_ENABLED:
             homomorphic_filter_frame = self.homorphic_filter_processor.process(frame)
             cv2.imwrite(str(output_dir_path / "homorphic_filter_frame.png"), homomorphic_filter_frame)
-        if CONFIG.LOGARITHMIC_TRANSFORM_ENABLED:
+        if CONFIG.PreProcessing.LOGARITHMIC_TRANSFORM_ENABLED:
             logarithmic_transform_frame = self.logarithmic_transform_processor.process(frame)
             cv2.imwrite(str(output_dir_path / "logarithmic_transform_frame.png"), logarithmic_transform_frame)
-        if CONFIG.ACE_ENABLED:
+        if CONFIG.PreProcessing.ACE_ENABLED:
             ace_frame = self.ace_processor.process(frame)
             cv2.imwrite(str(output_dir_path / "ace_frame.png"), ace_frame)
-        if CONFIG.ANISOTROPIC_DIFFUSION_ENABLED:
+        if CONFIG.PreProcessing.ANISOTROPIC_DIFFUSION_ENABLED:
             anisotropic_diffusion_frame = self.anisotropic_diffusion_processor.process(frame)
             cv2.imwrite(str(output_dir_path / "anisotropic_diffusion_frame.png"), anisotropic_diffusion_frame)
-        if CONFIG.WAVELET_ENABLED:
+        if CONFIG.PreProcessing.WAVELET_ENABLED:
             wavelet_frame = self.wavelet_processor.process(frame)
             cv2.imwrite(str(output_dir_path / "wavelet_frame.png"), wavelet_frame)
         return frame
