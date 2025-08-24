@@ -34,7 +34,8 @@ class VideoReIDApp:
         self.videos_directory_processor = VideosDirectoryProcessor()
         self.yolo_processor = YoloProcessor()
         self.clip_reid_processor = ClipReIDProcessor()
-        self.assign_person_id_processor = AssignPersonIdPostProcessor()
+        self.device = self.clip_reid_processor.get_device()
+        self.assign_person_id_processor = AssignPersonIdPostProcessor(device=self.device)
         self.clahe_processor = ClahePreProcessor()
         self.retinex_processor = RetinexPreProcessor()
         self.homorphic_filter_processor = HomorphicFilterProcessor()
@@ -96,6 +97,8 @@ class VideoReIDApp:
             ret, frame = video_capture.read()
             if not ret:
                 break
+            if frame is None:
+                continue
             self._process_video_frame(frame, video_writer)
 
         video_capture.release()
@@ -118,28 +121,20 @@ class VideoReIDApp:
         video_writer.write(frame)
 
     def _pre_process_frame(self, frame: np.ndarray) -> np.ndarray:
-        output_dir_path = self.videos_directory_processor.get_output_dir_path()
         if CONFIG.IMAGE_PROCESS == "clahe":
-            clahe_frame = self.clahe_processor.process(frame)
-            cv2.imwrite(str(output_dir_path / "clahe_frame.png"), clahe_frame)
+            frame = self.clahe_processor.process(frame)
         elif CONFIG.IMAGE_PROCESS == "retinex":
-            retinex_frame = self.retinex_processor.process(frame)
-            cv2.imwrite(str(output_dir_path / "retinex_frame.png"), retinex_frame)
+            frame = self.retinex_processor.process(frame)
         elif CONFIG.IMAGE_PROCESS == "homorphic_filter":
-            homomorphic_filter_frame = self.homorphic_filter_processor.process(frame)
-            cv2.imwrite(str(output_dir_path / "homorphic_filter_frame.png"), homomorphic_filter_frame)
+            frame = self.homorphic_filter_processor.process(frame)
         elif CONFIG.IMAGE_PROCESS == "logarithmic_transform":
-            logarithmic_transform_frame = self.logarithmic_transform_processor.process(frame)
-            cv2.imwrite(str(output_dir_path / "logarithmic_transform_frame.png"), logarithmic_transform_frame)
+            frame = self.logarithmic_transform_processor.process(frame)
         elif CONFIG.IMAGE_PROCESS == "ace":
-            ace_frame = self.ace_processor.process(frame)
-            cv2.imwrite(str(output_dir_path / "ace_frame.png"), ace_frame)
+            frame = self.ace_processor.process(frame)
         elif CONFIG.IMAGE_PROCESS == "anisotropic_diffusion":
-            anisotropic_diffusion_frame = self.anisotropic_diffusion_processor.process(frame)
-            cv2.imwrite(str(output_dir_path / "anisotropic_diffusion_frame.png"), anisotropic_diffusion_frame)
+            frame = self.anisotropic_diffusion_processor.process(frame)
         elif CONFIG.IMAGE_PROCESS == "wavelet":
-            wavelet_frame = self.wavelet_processor.process(frame)
-            cv2.imwrite(str(output_dir_path / "wavelet_frame.png"), wavelet_frame)
+            frame = self.wavelet_processor.process(frame)
         return frame
 
     def _draw_detection(self, frame: np.ndarray, bounding_box: np.ndarray, person_id: int) -> np.ndarray:
@@ -147,7 +142,7 @@ class VideoReIDApp:
         frame = cv2.rectangle(
             frame, (bounding_box[0], bounding_box[1]), (bounding_box[2], bounding_box[3]), color, 2)
         frame = cv2.putText(
-            frame, str(person_id), (bounding_box[0], bounding_box[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            frame, str(person_id), (bounding_box[0], bounding_box[1]), cv2.FONT_HERSHEY_SIMPLEX, 2, color, 3)
         return frame
 
     def _get_color_for_id(self, person_id: int) -> Tuple[int, int, int]:

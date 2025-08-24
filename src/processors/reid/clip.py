@@ -49,6 +49,8 @@ class ClipReIDProcessor:
             self.config, num_class=num_classes, camera_num=camera_num, view_num=view_num)
 
         model.load_param(self.config.TEST.WEIGHT)
+        model.eval()
+        model.to(self.config.MODEL.DEVICE)
         self.model = model
 
     def _initialize_transform(self) -> None:
@@ -84,14 +86,20 @@ class ClipReIDProcessor:
         view_id_tensor = None
 
         if self.config.MODEL.SIE_CAMERA:
-            camera_id_tensor = torch.tensor(camera_id, dtype=torch.long)
-            camera_id_tensor.to(self.config.MODEL.DEVICE)
+            camera_id_tensor = torch.tensor(camera_id, dtype=torch.long).to(self.config.MODEL.DEVICE)
 
         if self.config.MODEL.SIE_VIEW:
-            view_id_tensor = torch.tensor(view_id, dtype=torch.long)
-            view_id_tensor.to(self.config.MODEL.DEVICE)
+            view_id_tensor = torch.tensor(view_id, dtype=torch.long).to(self.config.MODEL.DEVICE)
 
         with torch.no_grad():
             feature = self.model(image_tensor, cam_label=camera_id_tensor, view_label=view_id_tensor)
 
         return feature
+
+    def get_device(self) -> str:
+        """
+        デバイスの取得
+
+        :return: デバイス名
+        """
+        return self.config.MODEL.DEVICE

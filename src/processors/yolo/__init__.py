@@ -43,7 +43,10 @@ class YoloProcessor:
             for box, keypoints in zip(result.boxes, result.keypoints):
                 box: Boxes
                 keypoints: Keypoints
-                box_id = int(box.id[0].cpu().numpy())
+                if box.id is not None:
+                    box_id = int(box.id[0].cpu().numpy())
+                else:
+                    box_id = None
                 box_xyxy = box.xyxy[0].cpu().numpy()
                 box_x1 = int(box_xyxy[0])
                 box_y1 = int(box_xyxy[1])

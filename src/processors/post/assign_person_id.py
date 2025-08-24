@@ -4,10 +4,10 @@ from data_class.person_data_set_features import PersonDataSetFeatures
 SIMILARITY_THRESHOLD = 0.85
 
 class AssignPersonIdPostProcessor:
-    def __init__(self):
+    def __init__(self, device: str):
         self.similarity_threshold = SIMILARITY_THRESHOLD
-        self.next_person_id = 0
-        self.gallery_data_set_features = PersonDataSetFeatures()
+        self.next_person_id = 1
+        self.gallery_data_set_features = PersonDataSetFeatures(device=device)
 
     def assign_person_id(
         self,
@@ -17,25 +17,20 @@ class AssignPersonIdPostProcessor:
         gallery_features = self.gallery_data_set_features.get_features()
         gallery_person_ids = self.gallery_data_set_features.get_person_ids()
 
-        if query_feature is None or gallery_features is None or gallery_features.numel() == 0:
-            self.next_person_id += 1
+        if gallery_features.numel() == 0:
             return_person_id = self.next_person_id
+            self.next_person_id += 1
         else:
             similarities = torch.nn.functional.cosine_similarity(
                 query_feature, gallery_features, dim=1, eps=1e-8)
 
-            valid_indices = similarities > self.similarity_threshold
+            best_sim, best_idx = torch.max(similarities, dim=0)
 
-            if valid_indices.any():
-                best_idx = torch.argmax(similarities).item()
-                best_sim = similarities[best_idx].item()
-
-                if best_sim > self.similarity_threshold:
-                    return_person_id = gallery_person_ids[best_idx]
-
-            if return_person_id is None:
-                self.next_person_id += 1
+            if best_sim.item() > self.similarity_threshold:
+                return_person_id = gallery_person_ids[best_idx]
+            else:
                 return_person_id = self.next_person_id
+                self.next_person_id += 1
 
         self.gallery_data_set_features.add_feature(query_feature)
         self.gallery_data_set_features.add_person_id(return_person_id)
