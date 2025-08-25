@@ -1,39 +1,69 @@
 import torch
+import torch.nn.functional as F
 
 
 def ace_filter(image_tensor: torch.Tensor) -> torch.Tensor:
     """
-    ACEの核心部分をPyTorchで実装
+    メモリ効率的なACEフィルタの実装
     Args:
         image_tensor (torch.Tensor): 入力画像テンソル (0-1の正規化済、C, H, W)
     Returns:
         torch.Tensor: 処理済み画像テンソル
     """
-    H, W = image_tensor.shape[1], image_tensor.shape[2]
-    image_reshaped = image_tensor.view(3, -1)  # (3, H*W)
+    # 入力テンソルの形状を確認
+    if image_tensor.dim() == 4:
+        # [B, C, H, W] の場合
+        batch_size, num_channels, height, width = image_tensor.shape
+        image_tensor = image_tensor.view(-1, num_channels, height, width)
+        result = _apply_ace_filter_2d(image_tensor)
+        result = result.view(batch_size, num_channels, height, width)
+    elif image_tensor.dim() == 3:
+        # [C, H, W] の場合
+        result = _apply_ace_filter_2d(image_tensor.unsqueeze(0)).squeeze(0)
+    else:
+        raise ValueError(f"予期しないテンソル次元: {image_tensor.dim()}")
 
-    # ピクセル間の距離を計算（高速化のため行列演算）
-    dist_matrix_x = image_reshaped.unsqueeze(2)  # (3, N, 1)
-    dist_matrix_y = image_reshaped.unsqueeze(1)  # (3, 1, N)
+    return result
 
-    # 3チャンネル分の差分行列を計算
-    # 差分行列 (3, N, N)
-    diff_matrix = dist_matrix_x - dist_matrix_y
 
-    # Sign関数を適用: -1, 0, 1
-    sign_matrix = torch.sign(diff_matrix)
+def _apply_ace_filter_2d(image_tensor: torch.Tensor) -> torch.Tensor:
+    """
+    2次元テンソルにACEフィルタを適用する内部関数
+    """
+    batch_size, num_channels, height, width = image_tensor.shape
 
-    # 全てのピクセルペアに対する差分を足し合わせる
-    # (3, N)
-    sum_diff = torch.sum(sign_matrix, dim=2)
+    # 局所的なACEフィルタを適用（カーネルサイズ7x7）
+    kernel_size = 7
+    padding = kernel_size // 2
 
-    # 正規化
-    normalized_sum = sum_diff / (H * W)
+    # 各チャンネルに対して局所的な統計を計算
+    result = torch.zeros_like(image_tensor)
 
-    # 元の画像に加算して調整
-    ace_tensor = image_reshaped + normalized_sum
+    for b in range(batch_size):
+        for c in range(num_channels):
+            # 現在のチャンネルの画像
+            current_channel = image_tensor[b, c:c+1, :, :]
 
-    # 0-1にクランプし、元の形状に戻す
-    ace_tensor = torch.clamp(ace_tensor, 0, 1).view(3, H, W)
+            # 局所的な平均と標準偏差を計算
+            local_mean = F.avg_pool2d(
+                current_channel, kernel_size, stride=1, padding=padding)
+            local_var = F.avg_pool2d(
+                current_channel**2, kernel_size, stride=1, padding=padding) - local_mean**2
+            local_std = torch.sqrt(torch.clamp(local_var, min=1e-8))
 
-    return ace_tensor
+            # 局所的な正規化
+            normalized = (current_channel - local_mean) / (local_std + 1e-8)
+
+            # グローバルな統計も考慮
+            global_mean = torch.mean(current_channel)
+            global_std = torch.std(current_channel)
+
+            # 局所とグローバルの統計を組み合わせ
+            enhanced = normalized * global_std + global_mean
+
+            # 0-1の範囲にクランプ
+            enhanced = torch.clamp(enhanced, 0, 1)
+
+            result[b, c:c+1, :, :] = enhanced
+
+    return result

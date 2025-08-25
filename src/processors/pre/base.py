@@ -3,9 +3,6 @@ import numpy as np
 import cv2
 
 class BasePreProcessor:
-    def __init__(self, device: str = "cuda" if torch.cuda.is_available() else "cpu"):
-        self.device = device
-
     def _np_image_to_tensor(self, image: np.ndarray) -> torch.Tensor:
         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         image_rgb_float = image_rgb.astype(np.float32)

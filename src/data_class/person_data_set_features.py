@@ -47,3 +47,6 @@ class PersonDataSetFeatures:
 
     def get_view_ids(self) -> list[int]:
         return self._views_id
+
+    def get_num_features(self) -> int:
+        return self._features.size(0)

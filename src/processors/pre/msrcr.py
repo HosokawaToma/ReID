@@ -1,14 +1,14 @@
 import numpy as np
-from library.pre_processing.ace import ace_filter
+from library.pre_processing.msrcr import msrcr_enhance
 from .base import BasePreProcessor
 
-class AcePreProcessor(BasePreProcessor):
+class MsrcrPreProcessor(BasePreProcessor):
     def __init__(self, device: str):
         self._device = device
 
     def process(self, image: np.ndarray) -> np.ndarray:
         image_tensor = self._np_image_to_tensor(image)
         image_tensor.to(self._device)
-        ace_image_tensor = ace_filter(image_tensor)
-        ace_image = self._tensor_image_to_np(ace_image_tensor)
-        return ace_image
+        msrcr_image_tensor = msrcr_enhance(image_tensor)
+        msrcr_image = self._tensor_image_to_np(msrcr_image_tensor)
+        return msrcr_image

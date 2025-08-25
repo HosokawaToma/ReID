@@ -3,9 +3,9 @@ from data_class.yolo_detections import YoloDetections
 from data_class.yolo_bounding_box import YoloBoundingBox
 from data_class.yolo_keypoints import YoloKeypoints
 
-IOU_THRESHOLD = 0.1
-MARGIN = 10
-KEYPOINT_CONFIDENCE_THRESHOLD = 0.1
+IOU_THRESHOLD = 0.5
+MARGIN = 50
+KEYPOINT_CONFIDENCE_THRESHOLD = 0.05
 
 class YoloVerificationProcessor:
     def __init__(self):
@@ -16,18 +16,9 @@ class YoloVerificationProcessor:
     def verification_person_detections(self,person_detections: List[YoloDetections]) -> List[YoloDetections]:
         return_person_detections = []
 
-        for index in range(len(person_detections)):
-            next_index = index + 1
-            if next_index >= len(person_detections):
-                break
-            person_detection = person_detections[index]
-            next_person_detection = person_detections[next_index]
+        for person_detection in person_detections:
             bounding_box = person_detection.get_bounding_box()
-            next_bounding_box = next_person_detection.get_bounding_box()
-            keypoints = person_detection.get_keypoints()
-            if self._is_overlap(bounding_box, next_bounding_box):
-                continue
-            if not self._is_keypoint_occluded(keypoints):
+            if self._is_out_of_frame(bounding_box, 1920, 1080):
                 continue
             return_person_detections.append(person_detection)
 
@@ -59,7 +50,7 @@ class YoloVerificationProcessor:
 
     def _is_overlap(self, box1: YoloBoundingBox, box2: YoloBoundingBox) -> bool:
         iou = self._calculate_iou(box1, box2)
-        if iou > self.iou_threshold:
+        if iou < self.iou_threshold:
             return True
         return False
 

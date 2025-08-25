@@ -9,19 +9,14 @@ from processors.directory.videos import VideosDirectoryProcessor
 from processors.yolo import YoloProcessor
 from processors.reid.clip import ClipReIDProcessor
 from processors.post.assign_person_id import AssignPersonIdPostProcessor
-from processors.pre.clahe import ClahePreProcessor
-from processors.pre.retinex import RetinexPreProcessor
-from processors.pre.homorphic_filter import HomorphicFilterProcessor
-from processors.pre.logarithmic_transform import LogarithmicTransformProcessor
-from processors.pre.ace import AcePreProcessor
-from processors.pre.anisotropic_diffusion import AnisotropicDiffusionPreProcessor
-from processors.pre.wavelet import WaveletPreProcessor
 from processors.yolo.verification import YoloVerificationProcessor
+from processors.pre.ganma import GanmaPreProcessor
 
 @dataclass
 class Config:
-    IMAGE_PROCESS = "clahe"
+    IMAGE_PROCESS = ""
     YOLO_VERIFICATION_ENABLED = True
+    ASSIGN_PERSON_ID_PROCESSOR = "hierarchy_cluster"
 
 CONFIG = Config()
 
@@ -36,13 +31,7 @@ class VideoReIDApp:
         self.clip_reid_processor = ClipReIDProcessor()
         self.device = self.clip_reid_processor.get_device()
         self.assign_person_id_processor = AssignPersonIdPostProcessor(device=self.device)
-        self.clahe_processor = ClahePreProcessor()
-        self.retinex_processor = RetinexPreProcessor()
-        self.homorphic_filter_processor = HomorphicFilterProcessor()
-        self.logarithmic_transform_processor = LogarithmicTransformProcessor()
-        self.ace_processor = AcePreProcessor()
-        self.anisotropic_diffusion_processor = AnisotropicDiffusionPreProcessor()
-        self.wavelet_processor = WaveletPreProcessor()
+        self.ganma_processor = GanmaPreProcessor()
         self.yolo_verification_processor = YoloVerificationProcessor()
 
     def run(self) -> None:
@@ -85,7 +74,7 @@ class VideoReIDApp:
         frame_width = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
         frame_rate = int(video_capture.get(cv2.CAP_PROP_FPS))
-        output_file_name = f"{CONFIG.IMAGE_PROCESS}_{video_file_path.stem}.mp4"
+        output_file_name = f"{CONFIG.IMAGE_PROCESS}_{CONFIG.ASSIGN_PERSON_ID_PROCESSOR}_{video_file_path.stem}.mp4"
         video_writer = cv2.VideoWriter(
             str(self.videos_directory_processor.get_output_dir_path() / output_file_name),
             cv2.VideoWriter_fourcc(*"mp4v"),
@@ -121,20 +110,8 @@ class VideoReIDApp:
         video_writer.write(frame)
 
     def _pre_process_frame(self, frame: np.ndarray) -> np.ndarray:
-        if CONFIG.IMAGE_PROCESS == "clahe":
-            frame = self.clahe_processor.process(frame)
-        elif CONFIG.IMAGE_PROCESS == "retinex":
-            frame = self.retinex_processor.process(frame)
-        elif CONFIG.IMAGE_PROCESS == "homorphic_filter":
-            frame = self.homorphic_filter_processor.process(frame)
-        elif CONFIG.IMAGE_PROCESS == "logarithmic_transform":
-            frame = self.logarithmic_transform_processor.process(frame)
-        elif CONFIG.IMAGE_PROCESS == "ace":
-            frame = self.ace_processor.process(frame)
-        elif CONFIG.IMAGE_PROCESS == "anisotropic_diffusion":
-            frame = self.anisotropic_diffusion_processor.process(frame)
-        elif CONFIG.IMAGE_PROCESS == "wavelet":
-            frame = self.wavelet_processor.process(frame)
+        if CONFIG.IMAGE_PROCESS == "ganma":
+            frame = self.ganma_processor.process(frame)
         return frame
 
     def _draw_detection(self, frame: np.ndarray, bounding_box: np.ndarray, person_id: int) -> np.ndarray:

@@ -1,7 +1,7 @@
 import torch
 from data_class.person_data_set_features import PersonDataSetFeatures
 
-SIMILARITY_THRESHOLD = 0.85
+SIMILARITY_THRESHOLD = 0.885
 
 class AssignPersonIdPostProcessor:
     def __init__(self, device: str):
