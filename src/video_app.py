@@ -14,9 +14,8 @@ from processors.pre.ganma import GanmaPreProcessor
 
 @dataclass
 class Config:
-    IMAGE_PROCESS = ""
+    GANMA_ENABLED = False
     YOLO_VERIFICATION_ENABLED = True
-    ASSIGN_PERSON_ID_PROCESSOR = "hierarchy_cluster"
 
 CONFIG = Config()
 
@@ -74,7 +73,7 @@ class VideoReIDApp:
         frame_width = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
         frame_rate = int(video_capture.get(cv2.CAP_PROP_FPS))
-        output_file_name = f"{CONFIG.IMAGE_PROCESS}_{CONFIG.ASSIGN_PERSON_ID_PROCESSOR}_{video_file_path.stem}.mp4"
+        output_file_name = video_file_path.name.replace(video_file_path.suffix, "_output.mp4")
         video_writer = cv2.VideoWriter(
             str(self.videos_directory_processor.get_output_dir_path() / output_file_name),
             cv2.VideoWriter_fourcc(*"mp4v"),
@@ -110,7 +109,7 @@ class VideoReIDApp:
         video_writer.write(frame)
 
     def _pre_process_frame(self, frame: np.ndarray) -> np.ndarray:
-        if CONFIG.IMAGE_PROCESS == "ganma":
+        if CONFIG.GANMA_ENABLED:
             frame = self.ganma_processor.process(frame)
         return frame
 

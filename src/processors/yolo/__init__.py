@@ -7,8 +7,11 @@ from data_class.yolo_bounding_box import YoloBoundingBox
 from data_class.yolo_keypoints import YoloKeypoints
 from data_class.yolo_keypoint import YoloKeypoint
 
-MODEL_PATH = "models/yolo11n-pose.pt"
+MODEL_PATH = "models/yolo11x-pose.pt"
 CONFIDENCE_THRESHOLD = 0.5
+IOU_THRESHOLD = 0.3
+IMGSZ = (640, 640)
+AGNOSTIC_NMS = False
 PERSON_CLASS_ID = 0
 VERBOSE = False
 TRACKER = "bytetrack.yaml"
@@ -18,6 +21,9 @@ class YoloProcessor:
     def __init__(self):
         self.model = YOLO(MODEL_PATH)
         self.confidence_threshold = CONFIDENCE_THRESHOLD
+        self.iou_threshold = IOU_THRESHOLD
+        self.imgsz = IMGSZ
+        self.agnostic_nms = AGNOSTIC_NMS
         self.person_class_id = PERSON_CLASS_ID
         self.verbose = VERBOSE
         self.tracker = TRACKER
@@ -28,9 +34,12 @@ class YoloProcessor:
             persist=True,
             classes=[self.person_class_id],
             conf=self.confidence_threshold,
+            iou=self.iou_threshold,
             verbose=self.verbose,
             tracker=self.tracker,
-            data=DATA
+            data=DATA,
+            imgsz=self.imgsz,
+            agnostic_nms=self.agnostic_nms
         )
 
         if not results or len(results) == 0:

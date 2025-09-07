@@ -20,7 +20,7 @@ class VideosDirectoryProcessor:
         self._output_dir_path.mkdir(parents=True, exist_ok=True)
 
     def get_video_file_paths(self) -> List[Path]:
-        return list(self._input_dir_path.glob("*.mp4"))
+        return sorted(list(self._input_dir_path.glob("*.mp4")))
 
     def get_output_dir_path(self) -> Path:
         return self._output_dir_path

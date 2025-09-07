@@ -1,8 +1,13 @@
 import cv2
 import numpy as np
-from library.pre_processing.ganma import adjust_gamma
 
 
 class GanmaPreProcessor:
+    def __init__(self, gamma: float = 1.1):
+        self.gamma = gamma
+        self.inv_gamma = 1.0 / gamma
+        self.table = np.array([((i / 255.0) ** self.inv_gamma) * 255
+                               for i in np.arange(0, 256)]).astype("uint8")
+
     def process(self, image: np.ndarray) -> np.ndarray:
-        return adjust_gamma(image, 1.5)
+        return cv2.LUT(image, self.table)
