@@ -3,11 +3,21 @@ from data_class.person_data_set_features import PersonDataSetFeatures
 
 SIMILARITY_THRESHOLD = 0.891
 
+
 class AssignPersonIdPostProcessor:
-    def __init__(self, device: str):
+    def __init__(self, device: str, initialize_random_features: bool = True, num_random_features: int = 100):
         self.similarity_threshold = SIMILARITY_THRESHOLD
         self.next_person_id = 1
         self.gallery_data_set_features = PersonDataSetFeatures(device=device)
+
+        # 初期化時にランダム特徴量を生成
+        if initialize_random_features:
+            self.gallery_data_set_features.initialize_random_features(
+                num_features=num_random_features,
+                feature_dim=1280
+            )
+            # 次のperson_idを適切に設定
+            self.next_person_id = num_random_features + 1
 
     def assign_person_id(
         self,

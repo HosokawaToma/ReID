@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 import torch
+import random
+
 
 @dataclass
 class PersonDataSetFeatures:
@@ -23,6 +25,33 @@ class PersonDataSetFeatures:
         self._features = features
         self._device = device
         self._features = self._features.to(self._device)
+
+    def initialize_random_features(self, num_features: int = 100, feature_dim: int = 768) -> None:
+        """
+        初期化時にランダムな特徴量を生成する
+
+        :param num_features: 生成する特徴量の数
+        :param feature_dim: 特徴量の次元数
+        """
+        # ランダムな特徴量を生成（L2正規化済み）
+        random_features = torch.randn(
+            num_features, feature_dim, device=self._device)
+        random_features = torch.nn.functional.normalize(
+            random_features, p=2, dim=1)
+
+        # 既存の特徴量と結合
+        if self._features.numel() == 0:
+            self._features = random_features
+        else:
+            self._features = torch.cat(
+                [self._features, random_features], dim=0)
+
+        # 対応するIDを生成
+        for i in range(num_features):
+            self._persons_id.append(i + 1)
+            self._cameras_id.append(
+                random.randint(0, 10))  # カメラIDは0-10の範囲でランダム
+            self._views_id.append(random.randint(0, 5))     # ビューIDは0-5の範囲でランダム
 
     def add_feature(self, feat: torch.Tensor) -> None:
         self._features = torch.cat([self._features, feat], dim=0)
