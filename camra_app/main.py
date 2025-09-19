@@ -9,7 +9,7 @@ from entities.api.person_crop_images_metadata import \
 class CameraApp:
     def __init__(self):
         self.yolo_camera_application = ApplicationYoloCamera()
-        self.api_application = ApplicationApi(server_ip="localhost:8000")
+        self.api_application = ApplicationApi(server_ip="localhost:8888")
 
     def run(self):
         for person_cropped_images in self.yolo_camera_application.run():

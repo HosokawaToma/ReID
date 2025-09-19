@@ -8,7 +8,7 @@ from entities.api.person_crop_images_metadata import \
 class ApplicationApi:
     def __init__(self, server_ip: str):
         self.server_ip = server_ip
-        self.person_cropped_images_url = self.server_ip + "/api/v1/camera/person_cropped_images"
+        self.person_cropped_images_url = "http://" + self.server_ip + "/identify_person"
 
     def post_person_cropped_images(self, person_cropped_images: list[np.ndarray], metadata: EntityApiPersonCropImagesMetadata):
         files = [
