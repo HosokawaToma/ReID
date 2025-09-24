@@ -39,6 +39,8 @@ resources/
 datasets/
 !/src/library/reid_models/clip_reid/datasets/
 !/server_app/service/identify_person/clip_reid/datasets/
+!/server_app/migration/models/
+server_app/.db
 
 # Model checkpoints
 checkpoints/

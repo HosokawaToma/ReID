@@ -2,7 +2,9 @@ import asyncio
 from queue import Queue
 
 from entities.person_crop_image import EntityPersonCropImage
+from service.database.person_crop_images import ServiceDatabasePersonCropImages
 from service.identify_person import ServiceIdentifyPerson
+from service.storage.person_crop_images import ServiceStoragePersonCropImages
 
 
 class ApplicationIdentifyPersonBackgroundProcess:
@@ -39,3 +41,6 @@ class ApplicationIdentifyPersonBackgroundProcess:
         camera_id = person_crop_image.camera_id
         view_id = person_crop_image.view_id
         person_id = await ServiceIdentifyPerson.Identify(image, camera_id, view_id)
+        person_crop_image.person_id = person_id
+        person_crop_image.filepath = ServiceStoragePersonCropImages.save(person_crop_image)
+        ServiceDatabasePersonCropImages.insert(person_crop_image)
