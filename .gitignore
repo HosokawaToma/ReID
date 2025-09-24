@@ -38,6 +38,7 @@ resources/
 # Data files
 datasets/
 !/src/library/reid_models/clip_reid/datasets/
+!/server_app/service/identify_person/clip_reid/datasets/
 
 # Model checkpoints
 checkpoints/
