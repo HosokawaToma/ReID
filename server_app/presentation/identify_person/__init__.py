@@ -1,10 +1,8 @@
-from fastapi import Depends, FastAPI, UploadFile
+from fastapi import FastAPI, UploadFile, Form
 
 from application.identify_person import ApplicationIdentifyPerson
 from application.identify_person.background_process import \
     ApplicationIdentifyPersonBackgroundProcess
-from presentation.identify_person.metadate import \
-    PresentationIdentifyPersonMetadata
 from presentation.identify_person.parse import PresentationIdentifyPersonParse
 
 
@@ -19,9 +17,11 @@ class PresentationIdentifyPerson:
     @staticmethod
     async def endpoint(
         images: list[UploadFile],
-        metadata: PresentationIdentifyPersonMetadata = Depends()
+        camera_id: int = Form(...),
+        view_id: int = Form(...),
+        timestamp: str = Form(...),
     ):
-        person_crop_images = await PresentationIdentifyPersonParse.parse(images, metadata)
+        person_crop_images = await PresentationIdentifyPersonParse.parse(images, camera_id, view_id, timestamp)
         await ApplicationIdentifyPerson.process(person_crop_images)
         return {"message": "Success"}
 
