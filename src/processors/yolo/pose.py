@@ -2,7 +2,7 @@ import numpy as np
 from typing import List
 from ultralytics import YOLO
 from ultralytics.engine.results import Boxes, Keypoints
-from data_class.yolo_detections import YoloDetections
+from data_class.yolo_pose_detections import YoloPoseDetections
 from data_class.yolo_bounding_box import YoloBoundingBox
 from data_class.yolo_keypoints import YoloKeypoints
 from data_class.yolo_keypoint import YoloKeypoint
@@ -17,7 +17,7 @@ VERBOSE = False
 TRACKER = "bytetrack.yaml"
 DATA = "coco-pose.yaml"
 
-class YoloProcessor:
+class YoloPoseProcessor:
     def __init__(self):
         self.model = YOLO(MODEL_PATH)
         self.confidence_threshold = CONFIDENCE_THRESHOLD
@@ -28,7 +28,7 @@ class YoloProcessor:
         self.verbose = VERBOSE
         self.tracker = TRACKER
 
-    def extract_person_detections(self, frame: np.ndarray) -> List[YoloDetections]:
+    def extract_person_detections(self, frame: np.ndarray) -> List[YoloPoseDetections]:
         results = self.model.track(
             frame,
             persist=True,
@@ -89,13 +89,13 @@ class YoloProcessor:
                     YoloKeypoint(keypoint_xys[15][0], keypoint_xys[15][1], keypoint_confs[15]),
                     YoloKeypoint(keypoint_xys[16][0], keypoint_xys[16][1], keypoint_confs[16])
                 )
-                detections.append(YoloDetections(
+                detections.append(YoloPoseDetections(
                     box_id, bounding_box, yolo_keypoints, box_conf, box_cls
                 ))
 
         return detections
 
-    def verification_person_detections(person_detections: List[YoloDetections]) -> List[YoloDetections]:
+    def verification_person_detections(person_detections: List[YoloPoseDetections]) -> List[YoloPoseDetections]:
         return_person_detections = []
         for person_detection in person_detections:
             for return_person_detection in return_person_detections:

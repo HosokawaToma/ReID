@@ -3,10 +3,12 @@ from dataclasses import dataclass
 from pathlib import Path
 import numpy as np
 import cv2
+from ultralytics.engine.results import Masks
 from typing import Tuple
 from processors.logger import LoggerProcessor
 from processors.directory.videos import VideosDirectoryProcessor
-from processors.yolo import YoloProcessor
+from processors.yolo.pose import YoloPoseProcessor
+from processors.yolo.seg import YoloSegProcessor
 from processors.reid.clip import ClipReIDProcessor
 from processors.post.assign_person_id import AssignPersonIdPostProcessor
 from processors.yolo.verification import YoloVerificationProcessor
@@ -26,7 +28,8 @@ class VideoReIDApp:
     def __init__(self):
         self.logger = LoggerProcessor.setup_logging()
         self.videos_directory_processor = VideosDirectoryProcessor()
-        self.yolo_processor = YoloProcessor()
+        self.yolo_pose_processor = YoloPoseProcessor()
+        self.yolo_seg_processor = YoloSegProcessor()
         self.clip_reid_processor = ClipReIDProcessor()
         self.device = self.clip_reid_processor.get_device()
         self.assign_person_id_processor = AssignPersonIdPostProcessor(device=self.device)
@@ -94,7 +97,7 @@ class VideoReIDApp:
 
     def _process_video_frame(self, frame: np.ndarray, video_writer: cv2.VideoWriter) -> None:
         """動画フレームの処理"""
-        person_detections = self.yolo_processor.extract_person_detections(frame)
+        person_detections = self.yolo_pose_processor.extract_person_detections(frame)
         if CONFIG.YOLO_VERIFICATION_ENABLED:
             person_detections = self.yolo_verification_processor.verification_person_detections(
                 person_detections)
@@ -103,6 +106,16 @@ class VideoReIDApp:
             bounding_box = person_detection.get_bounding_box()
             x1, y1, x2, y2 = bounding_box.get_coordinate()
             person_crop = pre_processed_frame[y1:y2, x1:x2]
+            masks = self.yolo_seg_processor.extract_person_masks(person_crop)
+            if masks is None:
+                print("masks is None")
+                continue
+            if masks.get_masks() is None:
+                print("masks.get_masks() is None")
+                continue
+            if len(masks.get_masks().xy) > 1:
+                print(f"len(masks.get_masks().xy): {len(masks.get_masks().xy)}")
+                continue
             feature = self.clip_reid_processor.extract_feature(person_crop)
             person_id = self.assign_person_id_processor.assign_person_id(feature)
             frame = self._draw_detection(frame, (x1, y1, x2, y2), person_id)

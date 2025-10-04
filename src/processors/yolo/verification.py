@@ -1,5 +1,5 @@
 from typing import List
-from data_class.yolo_detections import YoloDetections
+from data_class.yolo_pose_detections import YoloPoseDetections
 from data_class.yolo_bounding_box import YoloBoundingBox
 from data_class.yolo_keypoints import YoloKeypoints
 
@@ -10,7 +10,7 @@ class YoloVerificationProcessor:
     def __init__(self):
         self.margin = MARGIN
 
-    def verification_person_detections(self,person_detections: List[YoloDetections]) -> List[YoloDetections]:
+    def verification_person_detections(self,person_detections: List[YoloPoseDetections]) -> List[YoloPoseDetections]:
         return_person_detections = []
 
         for person_detection in person_detections:

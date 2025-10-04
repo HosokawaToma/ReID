@@ -4,7 +4,7 @@ from data_class.yolo_bounding_box import YoloBoundingBox
 from data_class.yolo_keypoints import YoloKeypoints
 
 @dataclass
-class YoloDetections:
+class YoloPoseDetections:
     _detection_id: int
     _bounding_box: YoloBoundingBox
     _keypoints: YoloKeypoints
